@@ -10,6 +10,8 @@ from app.schemas.dashboard import DashboardIncident, DashboardPipelineRun, Dashb
 
 
 class DashboardService:
+    """Service to handle fetching and calculating metrics for the dashboard."""
+
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
