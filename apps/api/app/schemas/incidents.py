@@ -46,11 +46,35 @@ class IncidentAnalysisResponse(BaseModel):
     similar_incidents: list[IncidentSearchMatch] = []
 
 
+class ValidationReport(BaseModel):
+    linter_passed: bool
+    linter_output: str
+    tests_passed: bool
+    tests_output: str
+    risk_level: str  # "low", "medium", "high"
+    risk_assessment: str
+
+
 class RemediationResponse(BaseModel):
     success: bool
     branch_name: str
     pr_url: str
     patch_content: str
+    validation: ValidationReport | None = None
+
+
+class SelfHealingStage(BaseModel):
+    name: str
+    status: str  # "success", "failed", "skipped", "pending"
+    message: str | None = None
+
+
+class SelfHealingResponse(BaseModel):
+    incident_id: UUID
+    success: bool
+    stages: list[SelfHealingStage]
+    pr_url: str | None = None
+    validation: ValidationReport | None = None
 
 
 class IncidentSearchRequest(BaseModel):

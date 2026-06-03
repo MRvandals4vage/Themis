@@ -16,10 +16,12 @@ from app.schemas.incidents import (
     IncidentSearchMatch,
     IncidentSearchRequest,
     RemediationResponse,
+    SelfHealingResponse,
 )
 from app.services.github_api import GitHubAPIService
 from app.services.incidents import IncidentService
 from app.services.rag import IncidentRAGService
+from app.services.self_healing import SelfHealingService
 
 router = APIRouter()
 
@@ -159,7 +161,17 @@ async def remediate_incident(
         branch_name=res.branch_name,
         pr_url=res.pr_url,
         patch_content=res.patch_content,
+        validation=res.validation,
     )
+
+
+@router.post("/{incident_id}/self-heal", response_model=SelfHealingResponse, status_code=200)
+async def self_heal_incident(
+    incident_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    qdrant: AsyncQdrantClient = Depends(get_qdrant),
+) -> SelfHealingResponse:
+    return await SelfHealingService(session, qdrant).run_self_healing(incident_id)
 
 
 @router.post("/search", response_model=list[IncidentSearchMatch], status_code=200)

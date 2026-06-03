@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     github_webhook_secret: str = Field(default="local-development-webhook-secret")
     openai_api_key: str = Field(default="")
     github_token: str = Field(default="")
+    enable_self_healing: bool = True
 
 
 @lru_cache

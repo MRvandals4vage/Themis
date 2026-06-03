@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 
 from app.core.config import settings
+from app.schemas.incidents import ValidationReport
 from app.services.github_api import GitHubAPIService
 
 
@@ -15,9 +16,19 @@ async def test_github_api_service_remediation() -> None:
     incident.pipeline_run = MagicMock()
     incident.pipeline_run.repository = "acme/api"
 
-    result = await service.create_auto_remediation_pr(
-        incident=incident, log_text="Docker build failed:\nModuleNotFoundError: dotenv"
-    )
+    mock_val = MagicMock(spec=ValidationReport)
+    mock_val.risk_level = "low"
+    mock_val.risk_assessment = "Low risk"
+    mock_val.linter_passed = True
+    mock_val.tests_passed = True
+    mock_val.linter_output = ""
+    mock_val.tests_output = ""
+
+    patch_target = "app.services.github_api.PatchValidationService.validate_patch"
+    with patch(patch_target, return_value=mock_val):
+        result = await service.create_auto_remediation_pr(
+            incident=incident, log_text="Docker build failed:\nModuleNotFoundError: dotenv"
+        )
 
     assert result.success is True
     assert "dotenv" in result.branch_name or "auto-patch" in result.branch_name
@@ -67,11 +78,21 @@ async def test_github_api_service_remediation_real_flow() -> None:
         mock_client.post.side_effect = [mock_branch_res, mock_pr_res]
         mock_client.put.return_value = mock_commit_res
 
-        with patch("httpx.AsyncClient", return_value=mock_client):
-            result = await service.create_auto_remediation_pr(
-                incident=incident,
-                log_text="Docker build failed:\nModuleNotFoundError: dotenv",
-            )
+        mock_val = MagicMock(spec=ValidationReport)
+        mock_val.risk_level = "low"
+        mock_val.risk_assessment = "Low risk"
+        mock_val.linter_passed = True
+        mock_val.tests_passed = True
+        mock_val.linter_output = ""
+        mock_val.tests_output = ""
+
+        patch_target = "app.services.github_api.PatchValidationService.validate_patch"
+        with patch(patch_target, return_value=mock_val):
+            with patch("httpx.AsyncClient", return_value=mock_client):
+                result = await service.create_auto_remediation_pr(
+                    incident=incident,
+                    log_text="Docker build failed:\nModuleNotFoundError: dotenv",
+                )
 
         assert result.success is True
         assert result.pr_url == "https://github.com/acme/api/pull/123"

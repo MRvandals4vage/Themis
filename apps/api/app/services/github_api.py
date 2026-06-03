@@ -1,20 +1,30 @@
 import base64
 import logging
+from typing import Any
 
 import httpx
 
 from app.core.config import settings
 from app.models import Incident
+from app.services.patch_validation import PatchValidationService
 
 logger = logging.getLogger(__name__)
 
 
 class RemediationResult:
-    def __init__(self, success: bool, branch_name: str, pr_url: str, patch_content: str) -> None:
+    def __init__(
+        self,
+        success: bool,
+        branch_name: str,
+        pr_url: str,
+        patch_content: str,
+        validation: Any = None,
+    ) -> None:
         self.success = success
         self.branch_name = branch_name
         self.pr_url = pr_url
         self.patch_content = patch_content
+        self.validation = validation
 
 
 class GitHubAPIService:
@@ -33,6 +43,23 @@ class GitHubAPIService:
         branch_name = f"fix/themis-auto-patch-{incident.id.hex[:6]}"
         patch_content = f"+ {package_to_add}"
 
+        # B2: Execute Sandbox Patch Validation Engine
+        validation_service = PatchValidationService()
+        validation = await validation_service.validate_patch(incident, patch_content)
+
+        if validation.risk_level == "high":
+            logger.warning(
+                f"Patch validation failed or returned high risk for incident {incident.id}. "
+                "Aborting Pull Request creation."
+            )
+            return RemediationResult(
+                success=False,
+                branch_name="",
+                pr_url="",
+                patch_content=patch_content,
+                validation=validation,
+            )
+
         # If token is not set, use local simulated flow
         if not settings.github_token:
             repo = incident.pipeline_run.repository
@@ -46,6 +73,7 @@ class GitHubAPIService:
                 branch_name=branch_name,
                 pr_url=pr_url,
                 patch_content=patch_content,
+                validation=validation,
             )
 
         repository = incident.pipeline_run.repository
@@ -126,6 +154,7 @@ class GitHubAPIService:
                     branch_name=branch_name,
                     pr_url=pr_url,
                     patch_content=patch_content,
+                    validation=validation,
                 )
 
             except Exception as e:
@@ -135,4 +164,5 @@ class GitHubAPIService:
                     branch_name="",
                     pr_url="",
                     patch_content="",
+                    validation=validation,
                 )
