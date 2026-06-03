@@ -9,6 +9,7 @@ from app.api.v1.pipelines.routes import router as pipelines_router
 from app.api.v1.rag.routes import router as rag_router
 from app.api.v1.repositories.routes import router as repositories_router
 from app.api.v1.users.routes import router as users_router
+from app.api.v1.webhooks.routes import router as webhooks_router
 
 api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
@@ -20,3 +21,4 @@ api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(rag_router, prefix="/rag", tags=["rag"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
+api_router.include_router(webhooks_router, prefix="/webhooks", tags=["webhooks"])

@@ -1,4 +1,4 @@
-import { Activity, Bot, GitBranch, ShieldCheck, Workflow } from "lucide-react";
+import { Activity, Clock, GitBranch, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -8,28 +8,37 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getHealth } from "@/lib/api";
-
-const metrics = [
-  { label: "Open incidents", value: "0", icon: Activity },
-  { label: "Connected repositories", value: "0", icon: GitBranch },
-  { label: "Agent runs today", value: "0", icon: Bot },
-];
-
-const workflow = [
-  "Failure Event",
-  "Classifier",
-  "Root Cause",
-  "RAG Retrieval",
-  "Fix Recommendation",
-  "Reporter",
-];
+import { getDashboardSummary, getHealth } from "@/lib/api";
 
 export default async function Home() {
   const health = await getHealth().catch(() => ({
     status: "degraded",
     service: "themis-api",
   }));
+  const dashboard = await getDashboardSummary().catch(() => ({
+    active_incidents: 0,
+    failed_pipelines: 0,
+    pipeline_history: [],
+    mttr_seconds: 0,
+    recent_failures: [],
+  }));
+  const metrics = [
+    {
+      label: "Active incidents",
+      value: String(dashboard.active_incidents),
+      icon: Activity,
+    },
+    {
+      label: "Failed pipelines",
+      value: String(dashboard.failed_pipelines),
+      icon: GitBranch,
+    },
+    {
+      label: "MTTR",
+      value: formatDuration(dashboard.mttr_seconds),
+      icon: Clock,
+    },
+  ];
 
   return (
     <main className="min-h-screen">
@@ -73,10 +82,10 @@ export default async function Home() {
         <section className="flex flex-col gap-6">
           <div>
             <p className="text-sm text-muted-foreground">
-              Production foundation
+              GitHub Actions integration
             </p>
             <h2 className="text-3xl font-semibold">
-              Autonomous CI/CD failure intelligence
+              Live CI/CD failure intelligence
             </h2>
           </div>
 
@@ -98,24 +107,76 @@ export default async function Home() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Agent workflow</CardTitle>
+              <CardTitle>Pipeline history</CardTitle>
               <CardDescription>
-                Initial LangGraph topology for failed pipeline investigations.
+                Normalized CI/CD executions received from webhook ingestion.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 md:grid-cols-6">
-                {workflow.map((step, index) => (
-                  <div
-                    key={step}
-                    className="rounded-md border bg-background p-3"
-                  >
-                    <p className="text-xs text-muted-foreground">
-                      Step {index + 1}
-                    </p>
-                    <p className="text-sm font-medium">{step}</p>
-                  </div>
-                ))}
+              <div className="flex flex-col gap-3">
+                {dashboard.pipeline_history.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No pipeline runs ingested yet.
+                  </p>
+                ) : (
+                  dashboard.pipeline_history.map((run) => (
+                    <div
+                      key={run.id}
+                      className="grid gap-2 rounded-md border bg-background p-3 md:grid-cols-[1.5fr_1fr_1fr_120px]"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">
+                          {run.workflow_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {run.repository}
+                        </p>
+                      </div>
+                      <p className="text-sm">{run.branch}</p>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        {run.commit_sha.slice(0, 8)}
+                      </p>
+                      <p className="text-sm capitalize">
+                        {run.conclusion ?? run.status}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent failures</CardTitle>
+              <CardDescription>
+                Incidents created automatically from failed pipeline executions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-3">
+                {dashboard.recent_failures.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No active failures have been recorded.
+                  </p>
+                ) : (
+                  dashboard.recent_failures.map((incident) => (
+                    <div
+                      key={incident.id}
+                      className="rounded-md border bg-background p-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium">{incident.title}</p>
+                        <p className="text-xs uppercase text-muted-foreground">
+                          {incident.severity}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {incident.repository} / {incident.workflow_name}
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -123,4 +184,15 @@ export default async function Home() {
       </div>
     </main>
   );
+}
+
+function formatDuration(seconds: number) {
+  if (seconds <= 0) {
+    return "0m";
+  }
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  return `${Math.round(minutes / 60)}h`;
 }

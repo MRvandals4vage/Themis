@@ -83,13 +83,20 @@ class PipelineRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     pipeline_id: Mapped[UUID] = mapped_column(ForeignKey("pipelines.id"), nullable=False)
+    provider: Mapped[PipelineProvider] = mapped_column(
+        Enum(PipelineProvider, name="pipeline_provider"), nullable=False
+    )
+    repository: Mapped[str] = mapped_column(String(512), nullable=False)
+    workflow_name: Mapped[str] = mapped_column(String(255), nullable=False)
     external_id: Mapped[str] = mapped_column(String(255), nullable=False)
     branch: Mapped[str] = mapped_column(String(255), nullable=False)
     commit_sha: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[PipelineRunStatus] = mapped_column(
         Enum(PipelineRunStatus, name="pipeline_run_status"), nullable=False
     )
+    conclusion: Mapped[str | None] = mapped_column(String(80), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     logs_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     raw_payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
