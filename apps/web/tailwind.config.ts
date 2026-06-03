@@ -18,9 +18,9 @@ const config: Config = {
         destructive: "hsl(var(--destructive))",
       },
       borderRadius: {
-        lg: "8px",
-        md: "6px",
-        sm: "4px",
+        lg: "0px",
+        md: "0px",
+        sm: "0px",
       },
     },
   },
