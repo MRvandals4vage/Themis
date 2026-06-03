@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_session
 from app.schemas.dashboard import DashboardSummary
+from app.schemas.enterprise import FleetAnalyticsReport
 from app.services.dashboard import DashboardService
 
 router = APIRouter()
@@ -16,3 +17,8 @@ async def analytics_summary() -> dict[str, int]:
 @router.get("/dashboard", response_model=DashboardSummary)
 async def dashboard_summary(session: AsyncSession = Depends(get_session)) -> DashboardSummary:
     return await DashboardService(session).get_summary()
+
+
+@router.get("/fleet", response_model=FleetAnalyticsReport)
+async def fleet_analytics(session: AsyncSession = Depends(get_session)) -> FleetAnalyticsReport:
+    return await DashboardService(session).get_fleet_analytics()

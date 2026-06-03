@@ -45,3 +45,40 @@ export async function getDashboardSummary() {
   }
   return response.json() as Promise<DashboardSummary>;
 }
+
+export type FleetRepositoryAnalytics = {
+  id: string;
+  name: string;
+  healthy: boolean;
+  incident_count: number;
+  mttr_seconds: number;
+  project_name: string | null;
+  team_name: string | null;
+};
+
+export type ProjectAnalytics = {
+  id: string;
+  name: string;
+  failure_rate: number;
+  incident_count: number;
+  health_score: number;
+};
+
+export type FleetAnalyticsReport = {
+  total_repositories: number;
+  active_incidents: number;
+  mttr_seconds: number;
+  healthy_projects: number;
+  repositories: Array<FleetRepositoryAnalytics>;
+  projects: Array<ProjectAnalytics>;
+};
+
+export async function getFleetAnalytics() {
+  const response = await fetch(`${API_BASE_URL}/api/v1/analytics/fleet`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error("Themis fleet analytics request failed");
+  }
+  return response.json() as Promise<FleetAnalyticsReport>;
+}

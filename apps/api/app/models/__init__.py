@@ -7,7 +7,10 @@ from app.models.entities import (
     Organization,
     Pipeline,
     PipelineRun,
+    Project,
     Repository,
+    Team,
+    TeamMember,
     User,
 )
 
@@ -20,6 +23,9 @@ __all__ = [
     "Organization",
     "Pipeline",
     "PipelineRun",
+    "Project",
     "Repository",
+    "Team",
+    "TeamMember",
     "User",
 ]

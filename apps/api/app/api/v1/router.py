@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.agents.routes import router as agents_router
 from app.api.v1.analytics.routes import router as analytics_router
 from app.api.v1.auth.routes import router as auth_router
+from app.api.v1.enterprise.routes import router as enterprise_router
 from app.api.v1.incidents.routes import router as incidents_router
 from app.api.v1.notifications.routes import router as notifications_router
 from app.api.v1.pipelines.routes import router as pipelines_router
@@ -22,3 +23,4 @@ api_router.include_router(rag_router, prefix="/rag", tags=["rag"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(webhooks_router, prefix="/webhooks", tags=["webhooks"])
+api_router.include_router(enterprise_router, tags=["enterprise"])
