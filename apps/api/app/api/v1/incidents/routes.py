@@ -80,6 +80,9 @@ async def analyze_incident(
     # Extract final results from the graph state
     category = current_state.get("classification", {}).get("category", "Unknown Error")
     confidence = current_state.get("classification", {}).get("confidence", 0.5)
+    summary = current_state.get("classification", {}).get(
+        "summary", "Failed to parse logs automatically"
+    )
     root_cause = current_state.get("root_cause", {}).get(
         "summary", "Failed to parse logs automatically"
     )
@@ -124,6 +127,7 @@ async def analyze_incident(
         category=category,
         root_cause=root_cause,
         confidence=confidence,
+        summary=summary,
     )
 
 

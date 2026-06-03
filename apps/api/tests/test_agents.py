@@ -23,6 +23,9 @@ async def test_agent_graph_execution() -> None:
 
     assert final_state["classification"]["category"] == "Dependency Error"
     assert final_state["classification"]["confidence"] == 0.96
+    assert final_state["classification"]["summary"] == (
+        "Build failed due to missing dependency python-dotenv " "during docker build."
+    )
     assert final_state["root_cause"]["summary"] == "python-dotenv missing"
     assert final_state["recommendation"]["actions"] == [
         "Investigate general Dependency Error error."

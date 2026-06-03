@@ -10,7 +10,11 @@ class ClassifierAgent:
 
         analysis_service = LogAnalysisService()
         result = await analysis_service.analyze_log(log_text)
-        state["classification"] = {"category": result.category, "confidence": result.confidence}
+        state["classification"] = {
+            "category": result.category,
+            "confidence": result.confidence,
+            "summary": result.summary,
+        }
         return state
 
 

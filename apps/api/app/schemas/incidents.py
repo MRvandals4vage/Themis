@@ -30,6 +30,7 @@ class IncidentAnalysisResponse(BaseModel):
     category: str
     root_cause: str
     confidence: float
+    summary: str
 
 
 class RemediationResponse(BaseModel):

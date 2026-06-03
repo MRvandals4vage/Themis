@@ -10,6 +10,7 @@ class LogAnalysisResult(BaseModel):
     )
     root_cause: str = Field(description="The specific cause of the failure.")
     confidence: float = Field(description="Confidence score of the analysis between 0.0 and 1.0.")
+    summary: str = Field(description="A concise summary of the build log and failure event.")
 
 
 class LogAnalysisService:
@@ -22,12 +23,19 @@ class LogAnalysisService:
             # For local environment without API key, return a mock/fallback
             if "ModuleNotFoundError" in log_text and "dotenv" in log_text:
                 return LogAnalysisResult(
-                    category="Dependency Error", root_cause="python-dotenv missing", confidence=0.96
+                    category="Dependency Error",
+                    root_cause="python-dotenv missing",
+                    confidence=0.96,
+                    summary=(
+                        "Build failed due to missing dependency python-dotenv "
+                        "during docker build."
+                    ),
                 )
             return LogAnalysisResult(
                 category="Unknown Error",
                 root_cause="Failed to parse logs automatically",
                 confidence=0.5,
+                summary="Build failed with unidentified errors.",
             )
 
         try:
@@ -59,4 +67,5 @@ class LogAnalysisService:
                 category="Analysis Error",
                 root_cause=f"AI log analysis failed: {str(e)}",
                 confidence=0.0,
+                summary="Log analysis failed with an exception.",
             )

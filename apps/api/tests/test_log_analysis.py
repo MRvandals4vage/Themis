@@ -11,6 +11,9 @@ async def test_log_analysis_service_fallback() -> None:
     assert result.category == "Dependency Error"
     assert result.root_cause == "python-dotenv missing"
     assert result.confidence == 0.96
+    assert result.summary == (
+        "Build failed due to missing dependency python-dotenv " "during docker build."
+    )
 
 
 @pytest.mark.asyncio
@@ -21,3 +24,4 @@ async def test_log_analysis_service_unknown() -> None:
     assert result.category == "Unknown Error"
     assert result.root_cause == "Failed to parse logs automatically"
     assert result.confidence == 0.5
+    assert result.summary == "Build failed with unidentified errors."
