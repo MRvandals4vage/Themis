@@ -37,3 +37,19 @@ class RemediationResponse(BaseModel):
     branch_name: str
     pr_url: str
     patch_content: str
+
+
+class IncidentSearchRequest(BaseModel):
+    query: str
+    limit: int = 3
+
+
+class IncidentSearchMatch(BaseModel):
+    incident_id: str | None = None
+    title: str | None = None
+    root_cause: str | None = None
+    category: str | None = None
+    resolution: str | None = None
+    patch: str | None = None
+    outcome: str | None = None
+    score: float

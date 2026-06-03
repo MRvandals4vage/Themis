@@ -12,6 +12,8 @@ from app.schemas.incidents import (
     IncidentAnalysisResponse,
     IncidentCreate,
     IncidentRead,
+    IncidentSearchMatch,
+    IncidentSearchRequest,
     RemediationResponse,
 )
 from app.services.github_api import GitHubAPIService
@@ -152,3 +154,13 @@ async def remediate_incident(
         pr_url=res.pr_url,
         patch_content=res.patch_content,
     )
+
+
+@router.post("/search", response_model=list[IncidentSearchMatch], status_code=200)
+async def search_similar_incidents(
+    payload: IncidentSearchRequest,
+    qdrant: AsyncQdrantClient = Depends(get_qdrant),
+) -> list[IncidentSearchMatch]:
+    rag_service = IncidentRAGService(qdrant)
+    matches = await rag_service.retrieve_similar_incidents(payload.query, limit=payload.limit)
+    return [IncidentSearchMatch(**m) for m in matches]

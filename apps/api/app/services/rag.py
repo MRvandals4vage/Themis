@@ -13,12 +13,21 @@ class IncidentRAGService:
         self.collection_name = "incidents"
 
     async def index_incident(
-        self, incident_id: uuid.UUID, title: str, summary: str, root_cause: str, category: str
+        self,
+        incident_id: uuid.UUID,
+        title: str,
+        summary: str,
+        root_cause: str,
+        category: str,
+        resolution: str = "",
+        patch: str = "",
+        outcome: str = "",
     ) -> None:
         """Embed and index a solved or analyzed incident failure log in Qdrant vector store."""
         content = (
             f"Title: {title}\nSummary: {summary}\n"
-            f"Category: {category}\nRoot Cause: {root_cause}"
+            f"Category: {category}\nRoot Cause: {root_cause}\n"
+            f"Resolution: {resolution}"
         )
         vector = await self.embedding_service.embed(content)
 
@@ -28,6 +37,9 @@ class IncidentRAGService:
             "summary": summary,
             "root_cause": root_cause,
             "category": category,
+            "resolution": resolution,
+            "patch": patch,
+            "outcome": outcome,
         }
 
         point_id = str(incident_id)
@@ -56,6 +68,9 @@ class IncidentRAGService:
                     "title": payload.get("title"),
                     "root_cause": payload.get("root_cause"),
                     "category": payload.get("category"),
+                    "resolution": payload.get("resolution", ""),
+                    "patch": payload.get("patch", ""),
+                    "outcome": payload.get("outcome", ""),
                     "score": res.get("score"),
                 }
             )
