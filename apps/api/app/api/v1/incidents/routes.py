@@ -8,6 +8,7 @@ from app.core.dependencies import get_qdrant, get_session
 from app.models import IncidentAnalysis
 from app.repositories.incidents import IncidentAnalysisRepository, IncidentRepository
 from app.schemas.incidents import (
+    AgentExecutionRead,
     IncidentAnalysisRequest,
     IncidentAnalysisResponse,
     IncidentCreate,
@@ -169,3 +170,24 @@ async def search_similar_incidents(
     rag_service = IncidentRAGService(qdrant)
     matches = await rag_service.retrieve_similar_incidents(payload.query, limit=payload.limit)
     return [IncidentSearchMatch(**m) for m in matches]
+
+
+@router.get(
+    "/{incident_id}/executions",
+    response_model=list[AgentExecutionRead],
+    status_code=200,
+)
+async def get_incident_executions(
+    incident_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> list[AgentExecutionRead]:
+    from sqlalchemy import select
+
+    from app.models import AgentExecution
+
+    result = await session.execute(
+        select(AgentExecution)
+        .where(AgentExecution.incident_id == incident_id)
+        .order_by(AgentExecution.created_at.asc())
+    )
+    return list(result.scalars().all())

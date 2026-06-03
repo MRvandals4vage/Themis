@@ -65,3 +65,25 @@ async def test_agent_graph_execution_with_retrieved_context() -> None:
     assert final_state["retrieved_context"][0]["title"] == "Old dotenv failure"
     assert "Old dotenv failure" in final_state["recommendation"]["actions"][0]
     assert "dotenv package was missing" in final_state["recommendation"]["actions"][1]
+
+
+@pytest.mark.asyncio
+async def test_get_incident_executions_route() -> None:
+    from uuid import uuid4
+
+    from app.api.v1.incidents.routes import get_incident_executions
+
+    mock_session = MagicMock()
+    mock_session.execute = AsyncMock()
+
+    mock_execution = MagicMock()
+    mock_execution.incident_id = uuid4()
+    mock_execution.agent_name = "classifier"
+
+    mock_session.execute.return_value = MagicMock(
+        scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[mock_execution])))
+    )
+
+    results = await get_incident_executions(incident_id=uuid4(), session=mock_session)
+    assert len(results) == 1
+    assert results[0].agent_name == "classifier"

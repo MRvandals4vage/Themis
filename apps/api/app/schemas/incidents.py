@@ -1,8 +1,9 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import IncidentSeverity, IncidentStatus
+from app.models.enums import AgentExecutionStatus, IncidentSeverity, IncidentStatus
 
 
 class IncidentCreate(BaseModel):
@@ -55,3 +56,16 @@ class RemediationResponse(BaseModel):
 class IncidentSearchRequest(BaseModel):
     query: str
     limit: int = 3
+
+
+class AgentExecutionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    incident_id: UUID
+    agent_name: str
+    status: AgentExecutionStatus
+    input_payload: dict
+    output_payload: dict
+    error_message: str | None = None
+    created_at: datetime

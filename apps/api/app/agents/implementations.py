@@ -50,8 +50,8 @@ class RAGRetrievalAgent:
         return state
 
 
-class FixRecommendationAgent:
-    name = "fix_recommendation"
+class FixGeneratorAgent:
+    name = "fix_generator"
 
     async def run(self, state: FailureAnalysisState) -> FailureAnalysisState:
         classification = state.get("classification", {})

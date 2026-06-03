@@ -57,10 +57,33 @@ export default function Home() {
   const [remediationDone, setRemediationDone] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [executions, setExecutions] = useState<any[]>([]);
+  const [loadingExecutions, setLoadingExecutions] = useState(false);
 
   const selectedIncident = dashboard.recent_failures.find(
     (inc) => inc.id === selectedIncidentId
   );
+
+  const fetchExecutions = (incidentId: string) => {
+    setLoadingExecutions(true);
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+    fetch(`${API_BASE_URL}/api/v1/incidents/${incidentId}/executions`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch executions");
+        return res.json();
+      })
+      .then((data) => {
+        setExecutions(data);
+      })
+      .catch((err) => {
+        console.error(err);
+        setExecutions([]);
+      })
+      .finally(() => {
+        setLoadingExecutions(false);
+      });
+  };
 
   useEffect(() => {
     if (!selectedIncidentId) return;
@@ -78,6 +101,7 @@ export default function Home() {
       })
       .then((data) => {
         setAnalysis(data);
+        fetchExecutions(selectedIncidentId);
       })
       .catch((err) => {
         console.error(err);
@@ -216,6 +240,16 @@ export default function Home() {
         return "border-black text-black bg-transparent";
     }
   };
+
+  const hasClassifier = executions.some((e) => e.agent_name === "classifier");
+  const hasRootCause = executions.some(
+    (e) => e.agent_name === "root_cause_agent"
+  );
+  const hasRetriever = executions.some((e) => e.agent_name === "retriever");
+  const hasFixGenerator = executions.some(
+    (e) => e.agent_name === "fix_generator"
+  );
+  const hasReporter = executions.some((e) => e.agent_name === "reporter");
 
   return (
     <div className="min-h-screen bg-[#fbf9f9] text-[#1b1c1c] flex flex-col font-sans">
@@ -947,17 +981,45 @@ export default function Home() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
+                        if (!selectedIncidentId) return;
                         setWorkflowStatus("running");
-                        setWorkflowSteps(0);
+                        const API_BASE_URL =
+                          process.env.NEXT_PUBLIC_API_BASE_URL ??
+                          "http://localhost:8000";
+                        fetch(
+                          `${API_BASE_URL}/api/v1/incidents/${selectedIncidentId}/analyze`,
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({}),
+                          }
+                        )
+                          .then((res) => {
+                            if (!res.ok) throw new Error("Failed to analyze");
+                            return res.json();
+                          })
+                          .then((data) => {
+                            setAnalysis(data);
+                            fetchExecutions(selectedIncidentId);
+                            setWorkflowStatus("completed");
+                          })
+                          .catch((err) => {
+                            console.error(err);
+                            setWorkflowStatus("idle");
+                          });
                       }}
-                      className="border border-black bg-white text-xs font-mono p-1.5 flex items-center gap-1 hover:bg-black hover:text-white"
+                      disabled={workflowStatus === "running"}
+                      className="border border-black bg-white text-xs font-mono p-1.5 flex items-center gap-1 hover:bg-black hover:text-white disabled:opacity-50"
                     >
-                      <Play className="w-3.5 h-3.5" /> Run Graph
+                      <Play className="w-3.5 h-3.5" />
+                      {workflowStatus === "running"
+                        ? "Running..."
+                        : "Run Graph"}
                     </button>
                     <button
                       onClick={() => {
                         setWorkflowStatus("idle");
-                        setWorkflowSteps(0);
+                        setExecutions([]);
                       }}
                       className="border border-black bg-white text-xs font-mono p-1.5 flex items-center gap-1 hover:bg-black hover:text-white"
                     >
@@ -979,29 +1041,29 @@ export default function Home() {
                   ></div>
 
                   {/* SVG Nodes Layout */}
-                  <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12 relative z-10 w-full max-w-3xl">
+                  <div className="flex flex-wrap items-center justify-center gap-6 relative z-10 w-full max-w-4xl">
                     {/* Trigger Node */}
-                    <div className="border border-black bg-white p-4 w-44 shadow-sm flex flex-col">
+                    <div className="border border-black bg-white p-4 w-40 shadow-sm flex flex-col transition-all">
                       <span className="text-[8px] font-mono uppercase text-[#7e7576] mb-1">
                         Trigger
                       </span>
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-[#ba1a1a]" />
                         <h4 className="text-xs font-bold uppercase">
-                          PagerDuty Alert
+                          Build Failure
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono text-[#7e7576] mt-2">
-                        prod-cluster-01
+                        {selectedIncident?.repository || "payment-gateway"}
                       </span>
                     </div>
 
-                    <div className="w-6 h-[1px] bg-black hidden md:block"></div>
+                    <div className="w-4 h-[1px] bg-black hidden xl:block"></div>
 
-                    {/* Classifier Node */}
+                    {/* Classifier Agent */}
                     <div
-                      className={`border p-4 w-44 flex flex-col transition-all duration-300 ${
-                        workflowSteps >= 1
+                      className={`border p-4 w-40 flex flex-col transition-all duration-300 ${
+                        hasClassifier
                           ? "border-black bg-black text-white"
                           : "border-[#cfc4c5] bg-white text-[#7e7576]"
                       }`}
@@ -1016,179 +1078,152 @@ export default function Home() {
                         </h4>
                       </div>
                       <span className="text-[8px] font-mono mt-2">
-                        LLM-Gpt4o-v2
+                        {hasClassifier ? "SUCCESS" : "PENDING"}
                       </span>
                     </div>
 
-                    <div className="w-6 h-[1px] bg-black hidden md:block"></div>
+                    <div className="w-4 h-[1px] bg-black hidden xl:block"></div>
 
-                    {/* Root Cause Node */}
-                    <div className="flex flex-col gap-4">
-                      <div
-                        className={`border p-4 w-44 flex flex-col transition-all duration-300 ${
-                          workflowSteps >= 2
-                            ? "border-black bg-black text-white"
-                            : "border-[#cfc4c5] bg-white text-[#7e7576]"
-                        }`}
-                      >
-                        <span className="text-[8px] font-mono uppercase mb-1">
-                          Agent Node
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <Search className="w-4 h-4" />
-                          <h4 className="text-xs font-bold uppercase">
-                            Root Cause Agent
-                          </h4>
-                        </div>
-                        <span className="text-[8px] font-mono mt-2">
-                          K8s-Specialist
-                        </span>
-                      </div>
-
-                      <div
-                        className={`border p-4 w-44 flex flex-col transition-all duration-300 ${
-                          workflowSteps >= 3
-                            ? "border-black bg-black text-white"
-                            : "border-[#cfc4c5] bg-white text-[#7e7576]"
-                        }`}
-                      >
-                        <span className="text-[8px] font-mono uppercase mb-1">
-                          Agent Node
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          <h4 className="text-xs font-bold uppercase">
-                            Log Analyzer
-                          </h4>
-                        </div>
-                        <span className="text-[8px] font-mono mt-2">
-                          CloudWatch-Reader
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="w-6 h-[1px] bg-black hidden md:block"></div>
-
-                    {/* Resolution Node */}
+                    {/* Root Cause Agent */}
                     <div
-                      className={`border p-4 w-44 flex flex-col transition-all duration-300 ${
-                        workflowSteps >= 4
-                          ? "border-black bg-white text-black"
+                      className={`border p-4 w-40 flex flex-col transition-all duration-300 ${
+                        hasRootCause
+                          ? "border-black bg-black text-white"
                           : "border-[#cfc4c5] bg-white text-[#7e7576]"
                       }`}
                     >
                       <span className="text-[8px] font-mono uppercase mb-1">
-                        Resolution
+                        Agent Node
                       </span>
                       <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-black" />
+                        <Search className="w-4 h-4" />
                         <h4 className="text-xs font-bold uppercase">
-                          Slack Notify
+                          Root Cause Agent
                         </h4>
                       </div>
                       <span className="text-[8px] font-mono mt-2">
-                        #ops-critical
+                        {hasRootCause ? "SUCCESS" : "PENDING"}
+                      </span>
+                    </div>
+
+                    <div className="w-4 h-[1px] bg-black hidden xl:block"></div>
+
+                    {/* Retriever Agent */}
+                    <div
+                      className={`border p-4 w-40 flex flex-col transition-all duration-300 ${
+                        hasRetriever
+                          ? "border-black bg-black text-white"
+                          : "border-[#cfc4c5] bg-white text-[#7e7576]"
+                      }`}
+                    >
+                      <span className="text-[8px] font-mono uppercase mb-1">
+                        Agent Node
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Layers className="w-4 h-4" />
+                        <h4 className="text-xs font-bold uppercase">
+                          Retriever Agent
+                        </h4>
+                      </div>
+                      <span className="text-[8px] font-mono mt-2">
+                        {hasRetriever ? "SUCCESS" : "PENDING"}
+                      </span>
+                    </div>
+
+                    <div className="w-4 h-[1px] bg-black hidden xl:block"></div>
+
+                    {/* Fix Generator Agent */}
+                    <div
+                      className={`border p-4 w-40 flex flex-col transition-all duration-300 ${
+                        hasFixGenerator
+                          ? "border-black bg-black text-white"
+                          : "border-[#cfc4c5] bg-white text-[#7e7576]"
+                      }`}
+                    >
+                      <span className="text-[8px] font-mono uppercase mb-1">
+                        Agent Node
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        <h4 className="text-xs font-bold uppercase">
+                          Fix Generator
+                        </h4>
+                      </div>
+                      <span className="text-[8px] font-mono mt-2">
+                        {hasFixGenerator ? "SUCCESS" : "PENDING"}
+                      </span>
+                    </div>
+
+                    <div className="w-4 h-[1px] bg-black hidden xl:block"></div>
+
+                    {/* Reporter Agent */}
+                    <div
+                      className={`border p-4 w-40 flex flex-col transition-all duration-300 ${
+                        hasReporter
+                          ? "border-black bg-black text-white"
+                          : "border-[#cfc4c5] bg-white text-[#7e7576]"
+                      }`}
+                    >
+                      <span className="text-[8px] font-mono uppercase mb-1">
+                        Agent Node
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
+                        <h4 className="text-xs font-bold uppercase">
+                          Reporter Agent
+                        </h4>
+                      </div>
+                      <span className="text-[8px] font-mono mt-2">
+                        {hasReporter ? "COMPLETED" : "PENDING"}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Sidebar reasoning summery */}
-              <div className="border-l border-black bg-white p-6 flex flex-col gap-6">
+              {/* Sidebar reasoning summary */}
+              <div className="border-l border-black bg-white p-6 flex flex-col gap-6 overflow-y-auto max-h-[calc(100vh-140px)]">
                 <h3 className="text-xs font-bold tracking-widest uppercase border-b border-black pb-3">
-                  REASONING SUMMARY
+                  AGENT AUDIT LOGS
                 </h3>
 
-                <div className="flex flex-col gap-2">
-                  <span className="text-[9px] font-mono tracking-wider text-[#7e7576] uppercase">
-                    ● ACTIVE TRACE
-                  </span>
-                  <div className="border-l-2 border-black pl-4 py-1 text-xs">
-                    {workflowSteps >= 1 ? (
-                      <p className="leading-relaxed">
-                        <strong>Classifier:</strong> Identified alert as
-                        &quot;High Priority&quot; based on latency threshold
-                        breaches (&gt;500ms).
-                      </p>
-                    ) : (
-                      <p className="text-[#7e7576] italic font-mono">
-                        Trace pending...
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <span className="text-[9px] font-mono tracking-wider text-[#7e7576] uppercase">
-                    STEP ANALYSIS
-                  </span>
-                  <div className="flex flex-col gap-2 font-mono text-[10px]">
-                    <div className="flex justify-between">
-                      <span>[1] Fetch K8s Pod logs</span>
-                      <span
-                        className={
-                          workflowSteps >= 1
-                            ? "text-black font-bold"
-                            : "text-[#7e7576]"
-                        }
+                <div className="flex flex-col gap-4">
+                  {executions.length === 0 ? (
+                    <p className="text-xs text-[#7e7576] italic font-mono">
+                      No executions recorded. Run the graph to analyze the
+                      incident.
+                    </p>
+                  ) : (
+                    executions.map((exec, idx) => (
+                      <div
+                        key={exec.id}
+                        className="border border-black bg-[#fbf9f9] p-4 flex flex-col gap-2 transition-all"
                       >
-                        {workflowSteps >= 1 ? "DONE" : "PENDING"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>[2] Parse memory metrics</span>
-                      <span
-                        className={
-                          workflowSteps >= 2
-                            ? "text-black font-bold"
-                            : "text-[#7e7576]"
-                        }
-                      >
-                        {workflowSteps >= 2 ? "DONE" : "PENDING"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>[3] Cross-ref with Git history</span>
-                      <span
-                        className={
-                          workflowSteps >= 3
-                            ? "text-black font-bold"
-                            : "text-[#7e7576]"
-                        }
-                      >
-                        {workflowSteps >= 3 ? "DONE" : "PENDING"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>[4] Identifying candidate code</span>
-                      <span
-                        className={
-                          workflowSteps >= 4
-                            ? "text-black font-bold"
-                            : "text-[#7e7576]"
-                        }
-                      >
-                        {workflowSteps >= 4 ? "v2.4.1-rc2" : "PENDING"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <span className="text-[9px] font-mono tracking-wider text-[#7e7576] uppercase">
-                    CONFIDENCE SCORE
-                  </span>
-                  <div className="w-full bg-[#efeded] h-2">
-                    <div
-                      className="bg-black h-full transition-all duration-500"
-                      style={{ width: workflowSteps >= 2 ? "88%" : "0%" }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-[9px] font-mono text-[#7e7576]">
-                    <span>{workflowSteps >= 2 ? "88% Probability" : "0%"}</span>
-                    <span>THRESHOLD: 75%</span>
-                  </div>
+                        <div className="flex justify-between items-center border-b border-[#cfc4c5] pb-2">
+                          <span className="text-[10px] font-mono font-bold uppercase tracking-tight text-black">
+                            [{idx + 1}] {exec.agent_name.replace("_", " ")}
+                          </span>
+                          <span className="text-[9px] font-mono text-[#7e7576]">
+                            {new Date(exec.created_at).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <p className="text-[10px] font-mono">
+                          <strong>STATUS:</strong>{" "}
+                          <span className="font-bold uppercase">
+                            {exec.status}
+                          </span>
+                        </p>
+                        <details className="mt-1">
+                          <summary className="text-[9px] font-mono text-[#7e7576] cursor-pointer hover:text-black">
+                            VIEW LOG PAYLOAD
+                          </summary>
+                          <pre className="mt-2 bg-white border border-[#efeded] p-2 text-[8px] font-mono overflow-x-auto max-h-48">
+                            {JSON.stringify(exec.output_payload, null, 2)}
+                          </pre>
+                        </details>
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 <div className="border border-black bg-[#fbf9f9] p-4 flex flex-col justify-between mt-auto">
@@ -1196,14 +1231,13 @@ export default function Home() {
                     RECOMMENDED ACTION
                   </span>
                   <p className="text-xs leading-relaxed mb-4">
-                    Rollback service &apos;billing-api&apos; to stable version
-                    &apos;v2.4.0&apos;.
+                    {analysis?.remediation?.actions?.[0] ||
+                      "Rollback service or apply auto-remediation patches."}
                   </p>
                   <button
                     onClick={() => {
                       alert("Remediation execution approved.");
                       setWorkflowStatus("idle");
-                      setWorkflowSteps(0);
                     }}
                     className="w-full bg-black text-white font-mono text-xs py-2 border border-black hover:bg-white hover:text-black transition-all"
                   >
