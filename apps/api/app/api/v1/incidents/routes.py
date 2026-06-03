@@ -14,7 +14,6 @@ from app.schemas.incidents import (
     IncidentRead,
 )
 from app.services.incidents import IncidentService
-from app.services.log_analysis import LogAnalysisService
 from app.services.rag import IncidentRAGService
 
 router = APIRouter()
@@ -50,40 +49,55 @@ async def analyze_incident(
     if not logs_to_analyze:
         logs_to_analyze = incident.summary
 
-    # RAG retrieve similar incidents
-    rag_service = IncidentRAGService(qdrant)
-    similar = await rag_service.retrieve_similar_incidents(logs_to_analyze, limit=3)
+    # Run LangGraph pipeline
+    from copy import deepcopy
 
-    # Analyze current log
-    analysis_service = LogAnalysisService()
-    result = await analysis_service.analyze_log(logs_to_analyze)
+    from app.agents.workflow import build_failure_analysis_graph
+    from app.models import AgentExecution
+    from app.models.enums import AgentExecutionStatus
+
+    graph = build_failure_analysis_graph(qdrant).compile()
+    initial_state = {"failure_event": {"logs": logs_to_analyze}}
+
+    current_state = deepcopy(initial_state)
+
+    async for chunk in graph.astream(initial_state):
+        for node_name, updated_state in chunk.items():
+            execution = AgentExecution(
+                incident_id=incident_id,
+                agent_name=node_name,
+                status=AgentExecutionStatus.SUCCEEDED,
+                input_payload={"state_before": deepcopy(current_state)},
+                output_payload=deepcopy(updated_state),
+            )
+            session.add(execution)
+            current_state.update(updated_state)
+
+    # Extract final results from the graph state
+    category = current_state.get("classification", {}).get("category", "Unknown Error")
+    confidence = current_state.get("classification", {}).get("confidence", 0.5)
+    root_cause = current_state.get("root_cause", {}).get(
+        "summary", "Failed to parse logs automatically"
+    )
+    similar = current_state.get("retrieved_context", [])
+    remediation_actions = current_state.get("recommendation", {}).get("actions", [])
 
     analysis_repo = IncidentAnalysisRepository(session)
     existing_analysis = await analysis_repo.get_by_incident_id(incident_id)
 
-    db_confidence = int(result.confidence * 100)
-
-    # Calculate remediation actions using retrieved fixes
-    remediation_actions = []
-    if similar:
-        remediation_actions.append(
-            f"Similar past failures were categorized as: {similar[0].get('category')}"
-        )
-        remediation_actions.append(f"Root cause was: {similar[0].get('root_cause')}")
-    else:
-        remediation_actions.append("No similar past incidents found in knowledge store.")
+    db_confidence = int(confidence * 100)
 
     if existing_analysis:
-        existing_analysis.category = result.category
-        existing_analysis.root_cause = result.root_cause
+        existing_analysis.category = category
+        existing_analysis.root_cause = root_cause
         existing_analysis.confidence_score = db_confidence
         existing_analysis.similar_incidents = similar
         existing_analysis.remediation = {"actions": remediation_actions}
     else:
         new_analysis = IncidentAnalysis(
             incident_id=incident_id,
-            category=result.category,
-            root_cause=result.root_cause,
+            category=category,
+            root_cause=root_cause,
             confidence_score=db_confidence,
             similar_incidents=similar,
             remediation={"actions": remediation_actions},
@@ -93,16 +107,17 @@ async def analyze_incident(
     await session.commit()
 
     # Index this failure in the vector store so future failures can match it
+    rag_service = IncidentRAGService(qdrant)
     await rag_service.index_incident(
         incident_id=incident_id,
         title=incident.title,
         summary=incident.summary,
-        root_cause=result.root_cause,
-        category=result.category,
+        root_cause=root_cause,
+        category=category,
     )
 
     return IncidentAnalysisResponse(
-        category=result.category,
-        root_cause=result.root_cause,
-        confidence=result.confidence,
+        category=category,
+        root_cause=root_cause,
+        confidence=confidence,
     )
