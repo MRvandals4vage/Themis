@@ -30,3 +30,10 @@ class IncidentAnalysisResponse(BaseModel):
     category: str
     root_cause: str
     confidence: float
+
+
+class RemediationResponse(BaseModel):
+    success: bool
+    branch_name: str
+    pr_url: str
+    patch_content: str

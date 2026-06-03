@@ -12,7 +12,9 @@ from app.schemas.incidents import (
     IncidentAnalysisResponse,
     IncidentCreate,
     IncidentRead,
+    RemediationResponse,
 )
+from app.services.github_api import GitHubAPIService
 from app.services.incidents import IncidentService
 from app.services.rag import IncidentRAGService
 
@@ -120,4 +122,33 @@ async def analyze_incident(
         category=category,
         root_cause=root_cause,
         confidence=confidence,
+    )
+
+
+@router.post("/{incident_id}/remediate", response_model=RemediationResponse, status_code=200)
+async def remediate_incident(
+    incident_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> RemediationResponse:
+    incident_repo = IncidentRepository(session)
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    result = await session.execute(
+        select(incident_repo.model)
+        .options(selectinload(incident_repo.model.pipeline_run))
+        .where(incident_repo.model.id == incident_id, incident_repo.model.deleted_at.is_(None))
+    )
+    incident = result.scalar_one_or_none()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    github_api = GitHubAPIService()
+    res = await github_api.create_auto_remediation_pr(incident, incident.summary)
+
+    return RemediationResponse(
+        success=res.success,
+        branch_name=res.branch_name,
+        pr_url=res.pr_url,
+        patch_content=res.patch_content,
     )

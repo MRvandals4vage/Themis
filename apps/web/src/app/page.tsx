@@ -149,11 +149,28 @@ export default function Home() {
   }, [workflowStatus]);
 
   const triggerRemediation = () => {
+    if (!selectedIncidentId) return;
     setRemediating(true);
-    setTimeout(() => {
-      setRemediating(false);
-      setRemediationDone(true);
-    }, 2000);
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+    fetch(`${API_BASE_URL}/api/v1/incidents/${selectedIncidentId}/remediate`, {
+      method: "POST",
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Remediation failed");
+        return res.json();
+      })
+      .then((data) => {
+        setRemediating(false);
+        setRemediationDone(true);
+        alert(
+          `Remediation PR opened!\n\nBranch: ${data.branch_name}\nPR URL: ${data.pr_url}\nPatch:\n${data.patch_content}`
+        );
+      })
+      .catch((err) => {
+        setRemediating(false);
+        alert(`Remediation failed: ${err.message}`);
+      });
   };
 
   const getSeverityBadgeColor = (severity: string) => {
