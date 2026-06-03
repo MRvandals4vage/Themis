@@ -26,11 +26,23 @@ class IncidentAnalysisRequest(BaseModel):
     logs: str | None = None
 
 
+class IncidentSearchMatch(BaseModel):
+    incident_id: str | None = None
+    title: str | None = None
+    root_cause: str | None = None
+    category: str | None = None
+    resolution: str | None = None
+    patch: str | None = None
+    outcome: str | None = None
+    score: float
+
+
 class IncidentAnalysisResponse(BaseModel):
     category: str
     root_cause: str
     confidence: float
     summary: str
+    similar_incidents: list[IncidentSearchMatch] = []
 
 
 class RemediationResponse(BaseModel):
@@ -43,14 +55,3 @@ class RemediationResponse(BaseModel):
 class IncidentSearchRequest(BaseModel):
     query: str
     limit: int = 3
-
-
-class IncidentSearchMatch(BaseModel):
-    incident_id: str | None = None
-    title: str | None = None
-    root_cause: str | None = None
-    category: str | None = None
-    resolution: str | None = None
-    patch: str | None = None
-    outcome: str | None = None
-    score: float

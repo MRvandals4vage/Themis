@@ -128,6 +128,7 @@ async def analyze_incident(
         root_cause=root_cause,
         confidence=confidence,
         summary=summary,
+        similar_incidents=similar,
     )
 
 

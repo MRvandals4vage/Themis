@@ -14,6 +14,7 @@ import {
   CheckCircle,
   FileText,
   AlertTriangle,
+  Layers,
 } from "lucide-react";
 import { getDashboardSummary, getHealth, DashboardSummary } from "@/lib/api";
 
@@ -54,6 +55,38 @@ export default function Home() {
   );
   const [remediating, setRemediating] = useState(false);
   const [remediationDone, setRemediationDone] = useState(false);
+  const [analysis, setAnalysis] = useState<any>(null);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+
+  const selectedIncident = dashboard.recent_failures.find(
+    (inc) => inc.id === selectedIncidentId
+  );
+
+  useEffect(() => {
+    if (!selectedIncidentId) return;
+    setLoadingAnalysis(true);
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+    fetch(`${API_BASE_URL}/api/v1/incidents/${selectedIncidentId}/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to analyze incident");
+        return res.json();
+      })
+      .then((data) => {
+        setAnalysis(data);
+      })
+      .catch((err) => {
+        console.error(err);
+        setAnalysis(null);
+      })
+      .finally(() => {
+        setLoadingAnalysis(false);
+      });
+  }, [selectedIncidentId]);
 
   useEffect(() => {
     // Fetch API health and dashboard data on load
@@ -665,19 +698,22 @@ export default function Home() {
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-[9px] font-mono bg-black text-white px-2 py-0.5">
-                        CASE #INC-942-03
+                        CASE #
+                        {selectedIncidentId?.slice(0, 8).toUpperCase() ||
+                          "INC-942-03"}
                       </span>
                       <span className="text-[9px] font-mono border border-black px-2 py-0.5">
-                        INVESTIGATION IN PROGRESS
+                        {analysis?.category?.toUpperCase() ||
+                          "INVESTIGATION IN PROGRESS"}
                       </span>
                     </div>
                     <h2 className="text-2xl font-bold tracking-tight uppercase">
-                      DATABASE CONNECTION TIMEOUT
+                      {selectedIncident?.title || "DATABASE CONNECTION TIMEOUT"}
                     </h2>
                     <p className="text-xs leading-relaxed text-[#4c4546] max-w-2xl mt-1">
-                      Forensic analysis of a cascading failure within the
-                      primary RDS instance triggered by an unoptimized query
-                      sequence in the payment-gateway service.
+                      {analysis?.summary ||
+                        "Forensic analysis of a cascading failure within the " +
+                          "primary build service pipeline."}
                     </p>
                   </div>
 
@@ -685,7 +721,11 @@ export default function Home() {
                     <span className="text-[9px] font-mono text-[#7e7576] block uppercase mb-1">
                       AI Confidence
                     </span>
-                    <span className="text-3xl font-bold">98%</span>
+                    <span className="text-3xl font-bold">
+                      {analysis
+                        ? `${Math.round(analysis.confidence * 100)}%`
+                        : "98%"}
+                    </span>
                   </div>
                 </div>
 
@@ -700,28 +740,21 @@ export default function Home() {
                       </div>
                       <div className="bg-black text-white p-4 font-mono text-[10px] leading-relaxed mb-4">
                         <p className="text-[#cfc4c5]">
-                          DETECTED: Excessive connection pooling exhaustion
-                          caused by &apos;ORDER BY&apos; operations on
-                          non-indexed &apos;transaction_metadata&apos; column in
-                          payment-gateway v2.4.1.
+                          DETECTED:{" "}
+                          {analysis?.root_cause ||
+                            "Excessive connection pooling exhaustion caused by " +
+                              "'ORDER BY' operations on non-indexed transaction table."}
                         </p>
                       </div>
                       <div className="border border-black bg-[#fbf9f9] p-3 font-mono text-[9px] text-[#4c4546] overflow-x-auto">
                         <p className="text-[#7e7576]">
-                          SOURCE: query_optimizer.py LINE 144
+                          SERVICE:{" "}
+                          {selectedIncident?.repository || "payment-gateway"}
                         </p>
-                        <p className="mt-2 text-black">
-                          {"// Identified problematic query sequence"}
-                        </p>
-                        <p className="text-black">
-                          SELECT * FROM transactions WHERE status =
-                          &apos;PENDING&apos;
-                        </p>
-                        <p className="bg-[#ffdad6] text-[#93000a] font-bold">
-                          ORDER BY metadata-&gt;&apos;provider_id&apos;
-                        </p>
-                        <p className="text-black">
-                          LIMIT 100 FOR UPDATE SKIP LOCKED;
+                        <p className="mt-2 text-[#7e7576]">
+                          WORKFLOW:{" "}
+                          {selectedIncident?.workflow_name ||
+                            "deploy-production"}
                         </p>
                       </div>
                     </div>
@@ -748,7 +781,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Right Column: Timeline & Github Issue creation */}
+                  {/* Right Column: Timeline & Proposed Remediation/Actions */}
                   <div className="flex flex-col gap-6">
                     <div className="border border-black bg-white p-4">
                       <div className="flex items-center gap-2 mb-4 text-xs font-bold">
@@ -762,7 +795,7 @@ export default function Home() {
                             14:22:01
                           </span>
                           <h4 className="text-xs font-bold mt-1">
-                            Alert: ConnectionTimeout
+                            Alert: Pipeline Failure
                           </h4>
                         </div>
                         <div className="relative">
@@ -771,7 +804,7 @@ export default function Home() {
                             14:22:15
                           </span>
                           <h4 className="text-xs font-bold mt-1">
-                            AI Agent scanning RDS logs
+                            AI Agent scanning build logs
                           </h4>
                         </div>
                         <div className="relative">
@@ -786,41 +819,92 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* GitHub issue preview */}
+                    {/* Proposed remediation steps / issue preview */}
                     <div className="border border-black bg-white p-4 flex flex-col justify-between">
                       <div className="flex justify-between items-center mb-4">
                         <span className="text-xs font-bold">
-                          PROPOSED GITHUB ISSUE
+                          PROPOSED REMEDIATION ACTIONS
                         </span>
-                        <button className="bg-black text-white text-[9px] font-mono py-1 px-2.5 border border-black hover:bg-white hover:text-black">
-                          GENERATE & POST
-                        </button>
                       </div>
                       <div className="border border-[#efeded] p-3 text-xs leading-relaxed">
-                        <h4 className="font-bold mb-2">
-                          Bug: Connection Exhaustion in payment-gateway service
-                        </h4>
-                        <p className="text-[11px] text-[#4c4546] mb-3">
-                          <strong>DESCRIPTION:</strong> The system is failing to
-                          return connections to the pool due to heavy sorting on
-                          non-indexed JSONB columns.
-                        </p>
-                        <p className="text-[11px] text-[#4c4546] mb-3">
-                          <strong>PROPOSED FIX:</strong> Add a GIN index to
-                          metadata or implement client-side sorting.
-                        </p>
-                        <div className="flex gap-1.5">
-                          <span className="border border-black px-1.5 py-0.5 text-[8px] font-mono">
-                            p0
-                          </span>
-                          <span className="border border-black px-1.5 py-0.5 text-[8px] font-mono">
-                            incident-response
-                          </span>
+                        <h4 className="font-bold mb-2">Fix Strategy</h4>
+                        <div className="flex flex-col gap-2 text-[11px] text-[#4c4546]">
+                          {analysis?.remediation?.actions ? (
+                            analysis.remediation.actions.map(
+                              (act: string, i: number) => (
+                                <div key={i} className="flex gap-2 items-start">
+                                  <span className="font-mono text-black font-bold">
+                                    •
+                                  </span>
+                                  <span>{act}</span>
+                                </div>
+                              )
+                            )
+                          ) : (
+                            <div className="flex gap-2 items-start">
+                              <span className="font-mono text-black font-bold">
+                                •
+                              </span>
+                              <span>
+                                Run standard auto-remediation to fix repository
+                                dependency problems.
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
+
+                {/* Similar Past Incidents (RAG Matches) */}
+                {analysis?.similar_incidents &&
+                  analysis.similar_incidents.length > 0 && (
+                    <div className="border border-black bg-white p-4">
+                      <div className="flex items-center gap-2 mb-4 text-xs font-bold">
+                        <Layers className="w-4 h-4" />
+                        <span>SIMILAR PAST INCIDENTS (RAG MATCHES)</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {analysis.similar_incidents.map(
+                          (sim: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="border border-[#efeded] p-3 text-xs leading-relaxed bg-[#fbf9f9] hover:bg-[#efeded] transition-all"
+                            >
+                              <div className="flex justify-between items-start mb-2 border-b border-black/10 pb-1">
+                                <h4 className="font-bold uppercase tracking-tight text-[11px]">
+                                  {sim.title || "Untitled Match"}
+                                </h4>
+                                <span className="text-[9px] font-mono border border-black px-1.5 py-0.5 bg-white">
+                                  Match: {Math.round(sim.score * 100)}%
+                                </span>
+                              </div>
+                              <div className="flex flex-col gap-1 text-[10px] text-[#4c4546]">
+                                <p>
+                                  <strong>Category:</strong> {sim.category}
+                                </p>
+                                <p>
+                                  <strong>Root Cause:</strong> {sim.root_cause}
+                                </p>
+                                {sim.resolution && (
+                                  <p>
+                                    <strong>Resolution:</strong>{" "}
+                                    {sim.resolution}
+                                  </p>
+                                )}
+                                {sim.patch && (
+                                  <pre className="mt-2 bg-white p-2 text-[8px] font-mono overflow-x-auto border border-[#efeded]">
+                                    {sim.patch}
+                                  </pre>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                 {/* Bottom actions panel */}
                 <div className="flex justify-end gap-3 border-t border-black pt-6 bg-white">
