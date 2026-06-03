@@ -20,3 +20,13 @@ class IncidentRead(BaseModel):
     summary: str
     severity: IncidentSeverity
     status: IncidentStatus
+
+
+class IncidentAnalysisRequest(BaseModel):
+    logs: str | None = None
+
+
+class IncidentAnalysisResponse(BaseModel):
+    category: str
+    root_cause: str
+    confidence: float

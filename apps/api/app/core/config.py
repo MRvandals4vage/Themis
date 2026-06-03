@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     cors_origins: list[str] = ["http://localhost:3000"]
     github_webhook_secret: str = Field(default="local-development-webhook-secret")
+    openai_api_key: str = Field(default="")
 
 
 @lru_cache

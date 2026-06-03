@@ -134,6 +134,7 @@ class IncidentAnalysis(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     incident_id: Mapped[UUID] = mapped_column(
         ForeignKey("incidents.id"), nullable=False, unique=True
     )
+    category: Mapped[str | None] = mapped_column(String(255), nullable=True)
     root_cause: Mapped[str] = mapped_column(Text, nullable=False)
     confidence_score: Mapped[int] = mapped_column(Integer, nullable=False)
     similar_incidents: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
