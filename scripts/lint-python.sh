@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+set -eu
+
+if [ -x ".venv/bin/ruff" ]; then
+  exec .venv/bin/ruff "$@"
+fi
+
+exec python -m ruff "$@"

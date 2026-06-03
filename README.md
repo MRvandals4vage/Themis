@@ -1,20 +1,49 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Themis
 
-# Run and deploy your AI Studio app
+Themis is an AI-powered DevOps Intelligence Platform for detecting, investigating, and resolving CI/CD pipeline failures.
 
-This contains everything you need to run your app locally.
+## Stack
 
-View your app in AI Studio: https://ai.studio/apps/cae9679a-f1bb-4152-b1d5-bc701a34ab5d
+- Frontend: Next.js 15, TypeScript, TailwindCSS, shadcn-style components, TanStack Query, Zustand
+- Backend: FastAPI, Python 3.12, async SQLAlchemy, Alembic
+- Data: PostgreSQL, Redis, Qdrant
+- AI: OpenAI SDK foundation, LangGraph workflow, RAG service interfaces
+- Infrastructure: Docker and Docker Compose
 
-## Run Locally
+## Monorepo
 
-**Prerequisites:**  Node.js
+```text
+apps/
+  web/
+  api/
+packages/
+  shared/
+  types/
+  ui/
+infrastructure/
+docs/
+scripts/
+```
 
+## Local Development
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm install
+docker compose up --build
+```
+
+Run migrations after PostgreSQL is healthy:
+
+```bash
+docker compose exec api alembic upgrade head
+```
+
+Web: `http://localhost:3000`
+
+API: `http://localhost:8000`
+
+API docs: `http://localhost:8000/docs`
+
+## Architecture
+
+See [docs/Architecture.md](docs/Architecture.md) and [docs/API.md](docs/API.md).

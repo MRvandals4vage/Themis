@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 220 16% 8%;
+  --foreground: 210 20% 96%;
+  --card: 220 14% 12%;
+  --card-foreground: 210 20% 96%;
+  --muted: 220 10% 18%;
+  --muted-foreground: 215 12% 68%;
+  --primary: 172 72% 42%;
+  --primary-foreground: 180 30% 8%;
+  --destructive: 0 72% 51%;
+  --border: 220 12% 22%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: Arial, Helvetica, sans-serif;
+}

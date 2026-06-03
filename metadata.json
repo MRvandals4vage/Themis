@@ -1,6 +1,0 @@
-{
-  "name": "DevOps Copilot",
-  "description": "AI-powered Ops Center with Forensic Analysis, Interactive Agent Workflows, and real-time incident dashboards.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
