@@ -1,9 +1,10 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_session
+from app.core.dependencies import get_qdrant, get_session
 from app.models import IncidentAnalysis
 from app.repositories.incidents import IncidentAnalysisRepository, IncidentRepository
 from app.schemas.incidents import (
@@ -14,6 +15,7 @@ from app.schemas.incidents import (
 )
 from app.services.incidents import IncidentService
 from app.services.log_analysis import LogAnalysisService
+from app.services.rag import IncidentRAGService
 
 router = APIRouter()
 
@@ -37,6 +39,7 @@ async def analyze_incident(
     incident_id: UUID,
     payload: IncidentAnalysisRequest,
     session: AsyncSession = Depends(get_session),
+    qdrant: AsyncQdrantClient = Depends(get_qdrant),
 ) -> IncidentAnalysisResponse:
     incident_repo = IncidentRepository(session)
     incident = await incident_repo.get(incident_id)
@@ -47,6 +50,11 @@ async def analyze_incident(
     if not logs_to_analyze:
         logs_to_analyze = incident.summary
 
+    # RAG retrieve similar incidents
+    rag_service = IncidentRAGService(qdrant)
+    similar = await rag_service.retrieve_similar_incidents(logs_to_analyze, limit=3)
+
+    # Analyze current log
     analysis_service = LogAnalysisService()
     result = await analysis_service.analyze_log(logs_to_analyze)
 
@@ -55,22 +63,43 @@ async def analyze_incident(
 
     db_confidence = int(result.confidence * 100)
 
+    # Calculate remediation actions using retrieved fixes
+    remediation_actions = []
+    if similar:
+        remediation_actions.append(
+            f"Similar past failures were categorized as: {similar[0].get('category')}"
+        )
+        remediation_actions.append(f"Root cause was: {similar[0].get('root_cause')}")
+    else:
+        remediation_actions.append("No similar past incidents found in knowledge store.")
+
     if existing_analysis:
         existing_analysis.category = result.category
         existing_analysis.root_cause = result.root_cause
         existing_analysis.confidence_score = db_confidence
+        existing_analysis.similar_incidents = similar
+        existing_analysis.remediation = {"actions": remediation_actions}
     else:
         new_analysis = IncidentAnalysis(
             incident_id=incident_id,
             category=result.category,
             root_cause=result.root_cause,
             confidence_score=db_confidence,
-            similar_incidents=[],
-            remediation={},
+            similar_incidents=similar,
+            remediation={"actions": remediation_actions},
         )
         await analysis_repo.add(new_analysis)
 
     await session.commit()
+
+    # Index this failure in the vector store so future failures can match it
+    await rag_service.index_incident(
+        incident_id=incident_id,
+        title=incident.title,
+        summary=incident.summary,
+        root_cause=result.root_cause,
+        category=result.category,
+    )
 
     return IncidentAnalysisResponse(
         category=result.category,
