@@ -16,7 +16,15 @@ import {
   AlertTriangle,
   Layers,
 } from "lucide-react";
-import { getDashboardSummary, getHealth, DashboardSummary } from "@/lib/api";
+import {
+  getDashboardSummary,
+  getHealth,
+  getFleetAnalytics,
+  DashboardSummary,
+  FleetAnalyticsReport,
+  FleetRepositoryAnalytics,
+  ProjectAnalytics,
+} from "@/lib/api";
 
 type Tab =
   | "Dashboard"
@@ -25,6 +33,7 @@ type Tab =
   | "AI Analysis"
   | "Knowledge Base"
   | "Agent Workflows"
+  | "Fleet Control"
   | "Reports"
   | "Settings";
 
@@ -59,6 +68,23 @@ export default function Home() {
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [executions, setExecutions] = useState<any[]>([]);
   const [loadingExecutions, setLoadingExecutions] = useState(false);
+
+  // Enterprise Fleet Control state
+  const [fleetReport, setFleetReport] = useState<FleetAnalyticsReport | null>(
+    null
+  );
+  const [loadingFleet, setLoadingFleet] = useState(false);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDesc, setNewProjectDesc] = useState("");
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [showLinkRepoModal, setShowLinkRepoModal] = useState(false);
+  const [selectedRepoId, setSelectedRepoId] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
 
   const selectedIncident = dashboard.recent_failures.find(
     (inc) => inc.id === selectedIncidentId
@@ -111,6 +137,172 @@ export default function Home() {
         setLoadingAnalysis(false);
       });
   }, [selectedIncidentId]);
+
+  const fetchFleetData = () => {
+    setLoadingFleet(true);
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+    getFleetAnalytics()
+      .then((data) => setFleetReport(data))
+      .catch((err) => {
+        console.error("Failed to fetch fleet report:", err);
+        setFleetReport({
+          total_repositories: 3,
+          active_incidents: 2,
+          mttr_seconds: 450,
+          healthy_projects: 1,
+          repositories: [
+            {
+              id: "repo-1",
+              name: "payment-gateway",
+              healthy: false,
+              incident_count: 5,
+              mttr_seconds: 600,
+              project_name: "Fintech Core",
+              team_name: "Backend Team",
+            },
+            {
+              id: "repo-2",
+              name: "user-profile-db",
+              healthy: false,
+              incident_count: 3,
+              mttr_seconds: 300,
+              project_name: "Identity Platform",
+              team_name: "Core Data Team",
+            },
+            {
+              id: "repo-3",
+              name: "notification-service",
+              healthy: true,
+              incident_count: 0,
+              mttr_seconds: 0,
+              project_name: "Messaging Platform",
+              team_name: "Backend Team",
+            },
+          ],
+          projects: [
+            {
+              id: "proj-1",
+              name: "Fintech Core",
+              failure_rate: 0.12,
+              incident_count: 5,
+              health_score: 80,
+            },
+            {
+              id: "proj-2",
+              name: "Identity Platform",
+              failure_rate: 0.25,
+              incident_count: 3,
+              health_score: 60,
+            },
+            {
+              id: "proj-3",
+              name: "Messaging Platform",
+              failure_rate: 0.0,
+              incident_count: 0,
+              health_score: 100,
+            },
+          ],
+        });
+      })
+      .finally(() => setLoadingFleet(false));
+
+    fetch(`${API_BASE_URL}/api/v1/organizations/default/teams`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setTeams(data))
+      .catch(() => setTeams([]));
+
+    fetch(`${API_BASE_URL}/api/v1/organizations/default/projects`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setProjects(data))
+      .catch(() => setProjects([]));
+  };
+
+  useEffect(() => {
+    if (activeTab === "Fleet Control") {
+      fetchFleetData();
+    }
+  }, [activeTab]);
+
+  const handleCreateTeam = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamName.trim()) return;
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+    fetch(`${API_BASE_URL}/api/v1/organizations/default/teams`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newTeamName }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to create team");
+        return res.json();
+      })
+      .then(() => {
+        setNewTeamName("");
+        setShowCreateTeamModal(false);
+        fetchFleetData();
+        alert("Team created successfully!");
+      })
+      .catch((err) => alert(err.message));
+  };
+
+  const handleCreateProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjectName.trim()) return;
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+    fetch(`${API_BASE_URL}/api/v1/organizations/default/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: newProjectName,
+        description: newProjectDesc,
+        team_id: selectedTeamId ? selectedTeamId : null,
+      }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to create project");
+        return res.json();
+      })
+      .then(() => {
+        setNewProjectName("");
+        setNewProjectDesc("");
+        setSelectedTeamId("");
+        setShowCreateProjectModal(false);
+        fetchFleetData();
+        alert("Project created successfully!");
+      })
+      .catch((err) => alert(err.message));
+  };
+
+  const handleLinkRepo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRepoId || !selectedProjectId) return;
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+    fetch(
+      `${API_BASE_URL}/api/v1/organizations/default/projects/${selectedProjectId}/repositories`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repository_id: selectedRepoId }),
+      }
+    )
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to link repository");
+        return res.json();
+      })
+      .then(() => {
+        setSelectedRepoId("");
+        setSelectedProjectId("");
+        setShowLinkRepoModal(false);
+        fetchFleetData();
+        alert("Repository linked to project successfully!");
+      })
+      .catch((err) => alert(err.message));
+  };
 
   useEffect(() => {
     // Fetch API health and dashboard data on load
@@ -307,6 +499,7 @@ export default function Home() {
               "AI Analysis",
               "Knowledge Base",
               "Agent Workflows",
+              "Fleet Control",
               "Reports",
               "Settings",
             ].map((tabName) => {
@@ -1248,10 +1441,316 @@ export default function Home() {
             </div>
           )}
 
+          {/* TAB: FLEET CONTROL */}
+          {activeTab === "Fleet Control" && (
+            <div className="p-6 flex flex-col gap-6">
+              <div>
+                <p className="text-[10px] text-[#4c4546] font-mono tracking-widest uppercase">
+                  SaaS Fleet Telemetry
+                </p>
+                <h2 className="text-xl font-bold tracking-tight uppercase">
+                  Repository Fleet Control
+                </h2>
+              </div>
+
+              {/* Analytics Summary */}
+              {fleetReport && (
+                <div className="grid grid-cols-1 md:grid-cols-4 border border-black divide-y md:divide-y-0 md:divide-x divide-black bg-white">
+                  <div className="p-4 flex flex-col gap-1">
+                    <span className="text-[8px] font-mono text-[#7e7576] uppercase">
+                      Total Fleet Repositories
+                    </span>
+                    <span className="text-2xl font-bold font-mono">
+                      {fleetReport.total_repositories}
+                    </span>
+                  </div>
+                  <div className="p-4 flex flex-col gap-1">
+                    <span className="text-[8px] font-mono text-[#7e7576] uppercase">
+                      Degraded / Failures
+                    </span>
+                    <span className="text-2xl font-bold font-mono text-[#ba1a1a]">
+                      {fleetReport.active_incidents}
+                    </span>
+                  </div>
+                  <div className="p-4 flex flex-col gap-1">
+                    <span className="text-[8px] font-mono text-[#7e7576] uppercase">
+                      Fleet Mean Recovery Time
+                    </span>
+                    <span className="text-2xl font-bold font-mono">
+                      {fleetReport.mttr_seconds}s
+                    </span>
+                  </div>
+                  <div className="p-4 flex flex-col gap-1">
+                    <span className="text-[8px] font-mono text-[#7e7576] uppercase">
+                      Healthy Fleet Projects
+                    </span>
+                    <span className="text-2xl font-bold font-mono">
+                      {fleetReport.healthy_projects}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Control Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCreateTeamModal(true)}
+                  className="border border-black text-xs font-mono px-4 py-2 hover:bg-black hover:text-white transition-all bg-white"
+                >
+                  Create Team
+                </button>
+                <button
+                  onClick={() => setShowCreateProjectModal(true)}
+                  className="border border-black text-xs font-mono px-4 py-2 hover:bg-black hover:text-white transition-all bg-white"
+                >
+                  Create Project
+                </button>
+                <button
+                  onClick={() => setShowLinkRepoModal(true)}
+                  className="border border-black text-xs font-mono px-4 py-2 hover:bg-black hover:text-white transition-all bg-white"
+                >
+                  Link Repository
+                </button>
+              </div>
+
+              {/* Repositories & Projects Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+                {/* Repository Fleet List */}
+                <div className="border border-black bg-white flex flex-col">
+                  <div className="border-b border-black p-4 bg-[#fbf9f9]">
+                    <h3 className="text-xs font-bold uppercase font-mono">
+                      Fleet Repositories
+                    </h3>
+                  </div>
+                  <div className="divide-y divide-black overflow-auto max-h-[400px]">
+                    {fleetReport?.repositories.map((repo) => (
+                      <div
+                        key={repo.id}
+                        className="p-4 flex items-center justify-between hover:bg-[#f5f3f3] transition-all"
+                      >
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold font-mono">
+                              {repo.name}
+                            </span>
+                            {repo.healthy ? (
+                              <span className="text-[8px] bg-black text-white px-1.5 py-0.5 uppercase tracking-widest font-mono">
+                                Healthy
+                              </span>
+                            ) : (
+                              <span className="text-[8px] bg-[#ba1a1a] text-white px-1.5 py-0.5 uppercase tracking-widest font-mono">
+                                Degraded
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex gap-2 text-[10px] text-[#7e7576] font-mono">
+                            <span>Project: {repo.project_name || "None"}</span>
+                            <span>•</span>
+                            <span>Team: {repo.team_name || "None"}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 text-right font-mono text-xs">
+                          <span>Incidents: {repo.incident_count}</span>
+                          <span className="text-[10px] text-[#7e7576]">
+                            MTTR: {repo.mttr_seconds}s
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Projects Health */}
+                <div className="border border-black bg-white flex flex-col">
+                  <div className="border-b border-black p-4 bg-[#fbf9f9]">
+                    <h3 className="text-xs font-bold uppercase font-mono">
+                      Project Health Index
+                    </h3>
+                  </div>
+                  <div className="divide-y divide-black overflow-auto max-h-[400px] p-4 flex flex-col gap-4">
+                    {fleetReport?.projects.map((proj) => (
+                      <div key={proj.id} className="flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold">{proj.name}</span>
+                          <span className="font-mono">
+                            Score: {proj.health_score}/100
+                          </span>
+                        </div>
+                        <div className="w-full h-1 bg-[#efeded]">
+                          <div
+                            className="h-full bg-black"
+                            style={{ width: `${proj.health_score}%` }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between text-[9px] text-[#7e7576] font-mono">
+                          <span>Fail Rate: {proj.failure_rate * 100}%</span>
+                          <span>Incidents: {proj.incident_count}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Create Team Modal */}
+              {showCreateTeamModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white border border-black p-6 w-full max-w-sm flex flex-col gap-4">
+                    <h3 className="text-xs font-bold uppercase font-mono">
+                      Create SaaS Team
+                    </h3>
+                    <form
+                      onSubmit={handleCreateTeam}
+                      className="flex flex-col gap-4"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Team Name"
+                        value={newTeamName}
+                        onChange={(e) => setNewTeamName(e.target.value)}
+                        className="border border-black text-xs font-mono p-2 w-full outline-none"
+                      />
+                      <div className="flex justify-end gap-2 text-xs font-mono">
+                        <button
+                          type="button"
+                          onClick={() => setShowCreateTeamModal(false)}
+                          className="border border-black px-3 py-1 hover:bg-[#f5f3f3]"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="bg-black text-white px-3 py-1 border border-black hover:bg-white hover:text-black"
+                        >
+                          Create
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Create Project Modal */}
+              {showCreateProjectModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white border border-black p-6 w-full max-w-sm flex flex-col gap-4">
+                    <h3 className="text-xs font-bold uppercase font-mono">
+                      Create Project Group
+                    </h3>
+                    <form
+                      onSubmit={handleCreateProject}
+                      className="flex flex-col gap-4"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Project Name"
+                        value={newProjectName}
+                        onChange={(e) => setNewProjectName(e.target.value)}
+                        className="border border-black text-xs font-mono p-2 w-full outline-none"
+                        required
+                      />
+                      <textarea
+                        placeholder="Description"
+                        value={newProjectDesc}
+                        onChange={(e) => setNewProjectDesc(e.target.value)}
+                        className="border border-black text-xs font-mono p-2 w-full outline-none h-20"
+                      />
+                      <select
+                        value={selectedTeamId}
+                        onChange={(e) => setSelectedTeamId(e.target.value)}
+                        className="border border-black text-xs font-mono p-2 w-full outline-none"
+                      >
+                        <option value="">Assign to Team (Optional)</option>
+                        {teams.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex justify-end gap-2 text-xs font-mono">
+                        <button
+                          type="button"
+                          onClick={() => setShowCreateProjectModal(false)}
+                          className="border border-black px-3 py-1 hover:bg-[#f5f3f3]"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="bg-black text-white px-3 py-1 border border-black hover:bg-white hover:text-black"
+                        >
+                          Create
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Link Repository Modal */}
+              {showLinkRepoModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white border border-black p-6 w-full max-w-sm flex flex-col gap-4">
+                    <h3 className="text-xs font-bold uppercase font-mono">
+                      Link Repository to Project
+                    </h3>
+                    <form
+                      onSubmit={handleLinkRepo}
+                      className="flex flex-col gap-4"
+                    >
+                      <select
+                        value={selectedRepoId}
+                        onChange={(e) => setSelectedRepoId(e.target.value)}
+                        className="border border-black text-xs font-mono p-2 w-full outline-none"
+                        required
+                      >
+                        <option value="">Select Repository</option>
+                        {fleetReport?.repositories.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={selectedProjectId}
+                        onChange={(e) => setSelectedProjectId(e.target.value)}
+                        className="border border-black text-xs font-mono p-2 w-full outline-none"
+                        required
+                      >
+                        <option value="">Select Project</option>
+                        {projects.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex justify-end gap-2 text-xs font-mono">
+                        <button
+                          type="button"
+                          onClick={() => setShowLinkRepoModal(false)}
+                          className="border border-black px-3 py-1 hover:bg-[#f5f3f3]"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="bg-black text-white px-3 py-1 border border-black hover:bg-white hover:text-black"
+                        >
+                          Link
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB: OTHER FALLBACKS */}
           {activeTab !== "Dashboard" &&
             activeTab !== "Incidents" &&
-            activeTab !== "Agent Workflows" && (
+            activeTab !== "Agent Workflows" &&
+            activeTab !== "Fleet Control" && (
               <div className="p-8 flex flex-col items-center justify-center text-center gap-4 flex-1">
                 <AlertTriangle className="w-8 h-8 text-black" />
                 <h3 className="text-sm font-bold uppercase">

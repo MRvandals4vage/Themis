@@ -54,9 +54,11 @@ class Repository(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     url: Mapped[str] = mapped_column(String(1024), nullable=False)
     default_branch: Mapped[str] = mapped_column(String(255), default="main", nullable=False)
+    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
 
     organization: Mapped[Organization] = relationship(back_populates="repositories")
     pipelines: Mapped[list["Pipeline"]] = relationship(back_populates="repository")
+    project: Mapped["Project | None"] = relationship(back_populates="repositories")
 
 
 class Pipeline(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -193,3 +195,37 @@ class Notification(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     subject: Mapped[str] = mapped_column(String(255), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Team(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "teams"
+
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    organization: Mapped[Organization] = relationship()
+    projects: Mapped[list["Project"]] = relationship(back_populates="team")
+    members: Mapped[list["TeamMember"]] = relationship(back_populates="team")
+
+
+class TeamMember(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "team_members"
+
+    team_id: Mapped[UUID] = mapped_column(ForeignKey("teams.id"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+
+    team: Mapped[Team] = relationship(back_populates="members")
+    user: Mapped[User] = relationship()
+
+
+class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "projects"
+
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"), nullable=False)
+    team_id: Mapped[UUID | None] = mapped_column(ForeignKey("teams.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    organization: Mapped[Organization] = relationship()
+    team: Mapped[Team | None] = relationship(back_populates="projects")
+    repositories: Mapped[list[Repository]] = relationship(back_populates="project")
