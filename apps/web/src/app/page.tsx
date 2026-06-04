@@ -775,53 +775,63 @@ export default function Home() {
                           </tr>
                         </thead>
                         <tbody>
-                          {[
-                            {
-                              name: "payment-gateway",
-                              env: "Production",
-                              err: "Timeout 504",
-                              dur: "14m",
-                              status: "CRITICAL",
-                            },
-                            {
-                              name: "user-profile-db",
-                              env: "Staging",
-                              err: "Connection Refused",
-                              dur: "2m",
-                              status: "RESOLVED",
-                            },
-                            {
-                              name: "cdn-edge-cache",
-                              env: "Production",
-                              err: "SSL Handshake",
-                              dur: "45m",
-                              status: "ONGOING",
-                            },
-                            {
-                              name: "search-indexer",
-                              env: "Development",
-                              err: "OOM Kill",
-                              dur: "8m",
-                              status: "WARNING",
-                            },
-                          ].map((row, idx) => (
-                            <tr
-                              key={idx}
-                              className="border-b border-[#efeded] last:border-b-0 hover:bg-[#f5f3f3]"
-                            >
-                              <td className="py-2.5 font-bold">{row.name}</td>
-                              <td className="py-2.5">{row.env}</td>
-                              <td className="py-2.5 text-[#ba1a1a]">
-                                {row.err}
-                              </td>
-                              <td className="py-2.5">{row.dur}</td>
-                              <td className="py-2.5">
-                                <span className="border border-black px-1.5 py-0.5 text-[9px] font-bold">
-                                  {row.status}
-                                </span>
+                          {dashboard.recent_failures &&
+                          dashboard.recent_failures.length > 0 ? (
+                            dashboard.recent_failures.map((inc, idx) => {
+                              const env =
+                                inc.workflow_name
+                                  ?.toLowerCase()
+                                  .includes("production") ||
+                                inc.severity === "critical"
+                                  ? "Production"
+                                  : "Staging";
+                              const createdDate = new Date(inc.created_at);
+                              const durationMs =
+                                Date.now() - createdDate.getTime();
+                              const durationMins = Math.max(
+                                Math.round(durationMs / 60000),
+                                1
+                              );
+                              const durStr =
+                                durationMs > 0 && durationMins < 60
+                                  ? `${durationMins}m ago`
+                                  : createdDate.toLocaleTimeString();
+
+                              return (
+                                <tr
+                                  key={inc.id || idx}
+                                  onClick={() => {
+                                    setSelectedIncidentId(inc.id);
+                                    setActiveTab("Incidents");
+                                  }}
+                                  className="border-b border-[#efeded] last:border-b-0 hover:bg-[#f5f3f3] cursor-pointer"
+                                >
+                                  <td className="py-2.5 font-bold">
+                                    {inc.repository}
+                                  </td>
+                                  <td className="py-2.5">{env}</td>
+                                  <td className="py-2.5 text-[#ba1a1a]">
+                                    {inc.title}
+                                  </td>
+                                  <td className="py-2.5">{durStr}</td>
+                                  <td className="py-2.5">
+                                    <span className="border border-black px-1.5 py-0.5 text-[9px] font-bold">
+                                      {inc.status.toUpperCase()}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td
+                                colSpan={5}
+                                className="py-4 text-center text-xs text-[#7e7576] italic font-mono"
+                              >
+                                No recent failures reported.
                               </td>
                             </tr>
-                          ))}
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1017,32 +1027,44 @@ export default function Home() {
                       </div>
                       <div className="relative border-l border-black ml-3 pl-6 py-2 flex flex-col gap-6">
                         <div className="relative">
-                          <div className="absolute -left-[30px] top-1.5 w-2 h-2 bg-black rounded-full"></div>
+                          <div className="absolute -left-[30px] top-1.5 w-2.5 h-2.5 bg-black rounded-full"></div>
                           <span className="text-[9px] font-mono text-[#7e7576]">
-                            14:22:01
+                            {selectedIncident
+                              ? new Date(
+                                  selectedIncident.created_at
+                                ).toLocaleTimeString()
+                              : "14:22:01"}
                           </span>
                           <h4 className="text-xs font-bold mt-1">
                             Alert: Pipeline Failure
                           </h4>
                         </div>
-                        <div className="relative">
-                          <div className="absolute -left-[30px] top-1.5 w-2 h-2 bg-black rounded-full"></div>
-                          <span className="text-[9px] font-mono text-[#7e7576]">
-                            14:22:15
-                          </span>
-                          <h4 className="text-xs font-bold mt-1">
-                            AI Agent scanning build logs
-                          </h4>
-                        </div>
-                        <div className="relative">
-                          <div className="absolute -left-[30px] top-1.5 w-2 h-2 bg-black rounded-full"></div>
-                          <span className="text-[9px] font-mono text-[#7e7576]">
-                            14:22:48
-                          </span>
-                          <h4 className="text-xs font-bold mt-1">
-                            Identified Root Cause
-                          </h4>
-                        </div>
+                        {executions && executions.length > 0 ? (
+                          executions.map((exec, idx) => (
+                            <div key={exec.id || idx} className="relative">
+                              <div className="absolute -left-[30px] top-1.5 w-2.5 h-2.5 bg-black rounded-full"></div>
+                              <span className="text-[9px] font-mono text-[#7e7576]">
+                                {new Date(exec.created_at).toLocaleTimeString()}
+                              </span>
+                              <h4 className="text-xs font-bold mt-1">
+                                {exec.agent_name
+                                  .replace("_", " ")
+                                  .toUpperCase()}
+                                : {exec.status.toUpperCase()}
+                              </h4>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="relative">
+                            <div className="absolute -left-[30px] top-1.5 w-2.5 h-2.5 bg-[#7e7576] rounded-full"></div>
+                            <span className="text-[9px] font-mono text-[#7e7576]">
+                              Pending
+                            </span>
+                            <h4 className="text-xs font-bold mt-1">
+                              Agent Orchestration Pending...
+                            </h4>
+                          </div>
+                        )}
                       </div>
                     </div>
 

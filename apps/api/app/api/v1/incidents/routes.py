@@ -132,6 +132,7 @@ async def analyze_incident(
         confidence=confidence,
         summary=summary,
         similar_incidents=similar,
+        remediation={"actions": remediation_actions},
     )
 
 

@@ -44,6 +44,7 @@ class IncidentAnalysisResponse(BaseModel):
     confidence: float
     summary: str
     similar_incidents: list[IncidentSearchMatch] = []
+    remediation: dict | None = None
 
 
 class ValidationReport(BaseModel):
