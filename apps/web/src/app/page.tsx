@@ -178,8 +178,8 @@ export default function LandingPage() {
       </div>
 
       {/* Top Header */}
-      <header className="relative z-10 bg-transparent flex flex-col items-center justify-center gap-4 px-8 py-6 pointer-events-none">
-        <div className="flex flex-col items-center text-center gap-1 pointer-events-auto">
+      <header className="relative z-10 bg-transparent flex flex-row items-center justify-center gap-8 px-8 py-6 pointer-events-none">
+        <div className="flex items-center gap-3 pointer-events-auto">
           <ShieldCheck className="text-black w-6 h-6" />
           <div>
             <h1 className="text-sm font-bold tracking-wider uppercase">
