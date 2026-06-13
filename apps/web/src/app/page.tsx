@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 import {
   ShieldCheck,
   GitBranch,
@@ -12,6 +14,64 @@ import {
   Database,
   Sparkles,
 } from "lucide-react";
+
+const BoxesCore = ({ className, ...rest }: { className?: string }) => {
+  const rows = new Array(150).fill(1);
+  const cols = new Array(100).fill(1);
+
+  return (
+    <div
+      style={{
+        transform: `translate(-40%,-60%) skewX(-48deg) skewY(14deg) scale(0.675) rotate(0deg) translateZ(0)`,
+      }}
+      className={cn(
+        "absolute left-1/4 p-4 -top-1/4 flex -translate-x-1/2 -translate-y-1/2 w-full h-full z-0",
+        className
+      )}
+      {...rest}
+    >
+      {rows.map((_, i) => (
+        <motion.div
+          key={`row` + i}
+          className="w-16 h-8 border-l border-zinc-200/50 relative"
+        >
+          {cols.map((_, j) => (
+            <motion.div
+              whileHover={{
+                backgroundColor: "rgb(0 0 0)",
+                transition: { duration: 0 },
+              }}
+              animate={{
+                transition: { duration: 2 },
+              }}
+              key={`col` + j}
+              className="w-16 h-8 border-r border-t border-zinc-200/50 relative"
+            >
+              {j % 2 === 0 && i % 2 === 0 ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
+                  className="absolute h-6 w-10 -top-[14px] -left-[22px] text-zinc-300 stroke-[1px] pointer-events-none"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 6v12m6-6H6"
+                  />
+                </svg>
+              ) : null}
+            </motion.div>
+          ))}
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
+const Boxes = React.memo(BoxesCore);
 
 export default function LandingPage() {
   const router = useRouter();
@@ -111,9 +171,11 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fbf9f9] text-[#1b1c1c] relative overflow-hidden flex flex-col font-sans selection:bg-black selection:text-white">
-      {/* Grid Pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000005_1px,transparent_1px),linear-gradient(to_bottom,#00000005_1px,transparent_1px)] bg-[size:3rem_3rem] pointer-events-none"></div>
+    <div className="min-h-screen bg-white text-[#1b1c1c] relative overflow-hidden flex flex-col font-sans selection:bg-black selection:text-white">
+      {/* Dynamic Boxes Background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <Boxes className="opacity-30" />
+      </div>
 
       {/* Top Header */}
       <header className="relative z-10 border-b border-black bg-white flex items-center justify-between px-8 py-4">
