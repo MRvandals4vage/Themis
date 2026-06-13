@@ -11,7 +11,7 @@
     "build": "npm run build -w @themis/web",
     "lint": "npm run lint -w @themis/web",
     "format": "prettier --write .",
-    "prepare": "husky || true"
+    "prepare": "node -e \"if (!process.env.CI && !process.env.VERCEL) { try { require('child_process').execSync('husky', { stdio: 'inherit' }) } catch (e) {} }\""
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
