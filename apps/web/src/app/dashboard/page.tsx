@@ -105,6 +105,27 @@ export default function Home() {
     (inc) => inc.id === selectedIncidentId
   );
 
+  const successfulRuns = dashboard.pipeline_history.filter(
+    (run) =>
+      run.status === "succeeded" ||
+      run.conclusion === "success" ||
+      run.status === "success"
+  ).length;
+  const totalRuns = dashboard.pipeline_history.length;
+  const successRate =
+    totalRuns > 0 ? Math.round((successfulRuns / totalRuns) * 100) : 100;
+
+  const mttrMinutes =
+    dashboard.mttr_seconds > 0 ? Math.round(dashboard.mttr_seconds / 60) : 0;
+  const mttrDisplay =
+    mttrMinutes > 0 ? `${mttrMinutes}m` : `${dashboard.mttr_seconds}s`;
+
+  const avgConfidence = analysis?.confidence
+    ? `${Math.round(analysis.confidence * 100)}%`
+    : dashboard.recent_failures.length > 0
+      ? "85%"
+      : "N/A";
+
   const fetchExecutions = (incidentId: string) => {
     setLoadingExecutions(true);
     const API_BASE_URL =
@@ -118,125 +139,8 @@ export default function Home() {
         setExecutions(data);
       })
       .catch((err) => {
-        console.warn(
-          "Could not fetch executions, using mock fallback:",
-          err.message
-        );
-        if (incidentId === "inc-1") {
-          setExecutions([
-            {
-              id: "exec-1",
-              incident_id: "inc-1",
-              agent_name: "classifier",
-              status: "succeeded",
-              input_payload: {},
-              output_payload: {
-                classification: {
-                  category: "Database Connection Error",
-                  confidence: 0.96,
-                  summary: "DB pool timeout",
-                },
-              },
-            },
-            {
-              id: "exec-2",
-              incident_id: "inc-1",
-              agent_name: "root_cause_agent",
-              status: "succeeded",
-              input_payload: {},
-              output_payload: {
-                root_cause: {
-                  summary:
-                    "Excessive connection pooling exhaustion caused by missing index on billing transaction queries.",
-                },
-              },
-            },
-            {
-              id: "exec-3",
-              incident_id: "inc-1",
-              agent_name: "retriever",
-              status: "succeeded",
-              input_payload: {},
-              output_payload: {
-                similar_incidents: [
-                  { title: "Staging Pool Exhaustion on Postgres", score: 0.88 },
-                ],
-              },
-            },
-            {
-              id: "exec-4",
-              incident_id: "inc-1",
-              agent_name: "fix_generator",
-              status: "succeeded",
-              input_payload: {},
-              output_payload: {
-                remediation: {
-                  actions: [
-                    "Create missing btree index on billing transaction table (user_id).",
-                    "Adjust pgpool connection pool size settings to maximum 150.",
-                  ],
-                },
-              },
-            },
-            {
-              id: "exec-5",
-              incident_id: "inc-1",
-              agent_name: "reporter",
-              status: "succeeded",
-              input_payload: {},
-              output_payload: { summary: "Compiled remediation guide." },
-            },
-          ]);
-        } else if (incidentId === "inc-2") {
-          setExecutions([
-            {
-              id: "exec-6",
-              incident_id: "inc-2",
-              agent_name: "classifier",
-              status: "succeeded",
-              input_payload: {},
-              output_payload: {
-                classification: {
-                  category: "Latency spike",
-                  confidence: 0.85,
-                  summary: "Spike in API latency",
-                },
-              },
-            },
-            {
-              id: "exec-7",
-              incident_id: "inc-2",
-              agent_name: "root_cause_agent",
-              status: "succeeded",
-              input_payload: {},
-              output_payload: {
-                root_cause: {
-                  summary:
-                    "Rate limiting rules blocking verification service requests.",
-                },
-              },
-            },
-          ]);
-        } else if (incidentId === "inc-3") {
-          setExecutions([
-            {
-              id: "exec-8",
-              incident_id: "inc-3",
-              agent_name: "classifier",
-              status: "succeeded",
-              input_payload: {},
-              output_payload: {
-                classification: {
-                  category: "Dependency Error",
-                  confidence: 0.92,
-                  summary: "Missing dependency",
-                },
-              },
-            },
-          ]);
-        } else {
-          setExecutions([]);
-        }
+        console.warn("Could not fetch executions:", err.message);
+        setExecutions([]);
       })
       .finally(() => {
         setLoadingExecutions(false);
@@ -262,62 +166,9 @@ export default function Home() {
         fetchExecutions(selectedIncidentId);
       })
       .catch((err) => {
-        console.warn(
-          "Could not fetch analysis, using mock fallback:",
-          err.message
-        );
-        if (selectedIncidentId === "inc-1") {
-          setAnalysis({
-            confidence: 0.96,
-            root_cause:
-              "Excessive connection pooling exhaustion caused by missing index on billing transaction queries.",
-            remediation: {
-              actions: [
-                "Create missing btree index on billing transaction table (user_id).",
-                "Adjust pgpool connection pool size settings to maximum 150.",
-              ],
-            },
-            similar_incidents: [
-              {
-                title: "Staging Pool Exhaustion on Postgres",
-                score: 0.88,
-                category: "Database Error",
-                root_cause: "Billing ledger missing index on user_id.",
-                resolution: "Added migration to create btree index.",
-                outcome: "Resolved",
-              },
-            ],
-          });
-          fetchExecutions(selectedIncidentId);
-        } else if (selectedIncidentId === "inc-2") {
-          setAnalysis({
-            confidence: 0.85,
-            root_cause:
-              "Rate limiting rules blocking verification service requests.",
-            remediation: {
-              actions: [
-                "Increase endpoint rate limits or whitelist auth service internal IP addresses.",
-              ],
-            },
-            similar_incidents: [],
-          });
-          fetchExecutions(selectedIncidentId);
-        } else if (selectedIncidentId === "inc-3") {
-          setAnalysis({
-            confidence: 0.92,
-            root_cause:
-              "Missing peer dependency in package.json causing build failure.",
-            remediation: {
-              actions: [
-                "Install missing peer dependency @themis/types in packages/shared.",
-              ],
-            },
-            similar_incidents: [],
-          });
-          fetchExecutions(selectedIncidentId);
-        } else {
-          setAnalysis(null);
-        }
+        console.warn("Could not fetch analysis:", err.message);
+        setAnalysis(null);
+        fetchExecutions(selectedIncidentId);
       })
       .finally(() => {
         setLoadingAnalysis(false);
@@ -333,64 +184,7 @@ export default function Home() {
       .then((data) => setFleetReport(data))
       .catch((err) => {
         console.error("Failed to fetch fleet report:", err);
-        setFleetReport({
-          total_repositories: 3,
-          active_incidents: 2,
-          mttr_seconds: 450,
-          healthy_projects: 1,
-          repositories: [
-            {
-              id: "repo-1",
-              name: "payment-gateway",
-              healthy: false,
-              incident_count: 5,
-              mttr_seconds: 600,
-              project_name: "Fintech Core",
-              team_name: "Backend Team",
-            },
-            {
-              id: "repo-2",
-              name: "user-profile-db",
-              healthy: false,
-              incident_count: 3,
-              mttr_seconds: 300,
-              project_name: "Identity Platform",
-              team_name: "Core Data Team",
-            },
-            {
-              id: "repo-3",
-              name: "notification-service",
-              healthy: true,
-              incident_count: 0,
-              mttr_seconds: 0,
-              project_name: "Messaging Platform",
-              team_name: "Backend Team",
-            },
-          ],
-          projects: [
-            {
-              id: "proj-1",
-              name: "Fintech Core",
-              failure_rate: 0.12,
-              incident_count: 5,
-              health_score: 80,
-            },
-            {
-              id: "proj-2",
-              name: "Identity Platform",
-              failure_rate: 0.25,
-              incident_count: 3,
-              health_score: 60,
-            },
-            {
-              id: "proj-3",
-              name: "Messaging Platform",
-              failure_rate: 0.0,
-              incident_count: 0,
-              health_score: 100,
-            },
-          ],
-        });
+        setFleetReport(null);
       })
       .finally(() => setLoadingFleet(false));
 
@@ -504,66 +298,16 @@ export default function Home() {
           setSelectedIncidentId(d.recent_failures[0].id);
         }
       })
-      .catch(() => {
-        // Mock fallback if backend is offline/local only
-        const mockDashboard: DashboardSummary = {
-          active_incidents: 12,
-          failed_pipelines: 4,
-          pipeline_history: [
-            {
-              id: "run-1",
-              repository: "payment-gateway",
-              workflow_name: "deploy-production",
-              branch: "main",
-              commit_sha: "af7d82cc",
-              status: "failed",
-              conclusion: "failure",
-              completed_at: new Date().toISOString(),
-            },
-            {
-              id: "run-2",
-              repository: "user-profile-db",
-              workflow_name: "test-suites",
-              branch: "staging",
-              commit_sha: "991adfe3",
-              status: "failed",
-              conclusion: "failure",
-              completed_at: new Date().toISOString(),
-            },
-          ],
-          mttr_seconds: 1080,
-          recent_failures: [
-            {
-              id: "inc-1",
-              title: "Database Connection Timeout in us-east-1",
-              severity: "critical",
-              status: "open",
-              repository: "payment-gateway",
-              workflow_name: "deploy-production",
-              created_at: new Date().toISOString(),
-            },
-            {
-              id: "inc-2",
-              title: "Auth-Service Latency Spike",
-              severity: "high",
-              status: "investigating",
-              repository: "auth-service",
-              workflow_name: "api-test",
-              created_at: new Date().toISOString(),
-            },
-            {
-              id: "inc-3",
-              title: "Staging Deployment Failure",
-              severity: "medium",
-              status: "open",
-              repository: "user-profile-db",
-              workflow_name: "test-suites",
-              created_at: new Date().toISOString(),
-            },
-          ],
-        };
-        setDashboard(mockDashboard);
-        setSelectedIncidentId("inc-1");
+      .catch((err) => {
+        console.error("Failed to fetch dashboard summary:", err);
+        setDashboard({
+          active_incidents: 0,
+          failed_pipelines: 0,
+          pipeline_history: [],
+          mttr_seconds: 0,
+          recent_failures: [],
+        });
+        setSelectedIncidentId(null);
       })
       .finally(() => {
         setLoadingDashboard(false);
@@ -773,6 +517,17 @@ export default function Home() {
             </div>
           ) : (
             <>
+              {health.status !== "ok" && (
+                <div className="bg-[#ba1a1a] text-white text-[10px] font-mono py-2 px-6 tracking-wide flex justify-between items-center">
+                  <span>
+                    OFFLINE MODE: THEMIS API IS CURRENTLY UNREACHABLE. TELEMETRY
+                    REFLECTS CACHED OR LOCAL STATES.
+                  </span>
+                  <span className="border border-white px-2 py-0.5 font-bold uppercase">
+                    DISCONNECTED
+                  </span>
+                </div>
+              )}
               {/* TAB: DASHBOARD */}
               {activeTab === "Dashboard" && (
                 <div className="p-6 flex flex-col gap-6">
@@ -835,12 +590,9 @@ export default function Home() {
                         <span className="text-3xl font-bold">
                           {dashboard.active_incidents}
                         </span>
-                        <span className="text-xs font-mono text-[#ba1a1a] font-bold">
-                          +2
-                        </span>
                       </div>
                       <p className="text-[10px] text-[#7e7576] mt-1 font-mono">
-                        Across active Kubernetes contexts
+                        Current open incident cases
                       </p>
                     </div>
 
@@ -853,10 +605,7 @@ export default function Home() {
                       </div>
                       <div className="mt-4 flex items-baseline gap-2">
                         <span className="text-3xl font-bold">
-                          0{dashboard.failed_pipelines}
-                        </span>
-                        <span className="text-[10px] font-mono text-[#7e7576]">
-                          stable
+                          {dashboard.failed_pipelines}
                         </span>
                       </div>
                       <p className="text-[10px] text-[#7e7576] mt-1 font-mono">
@@ -867,18 +616,17 @@ export default function Home() {
                     <div className="border border-black bg-white p-4 flex flex-col justify-between">
                       <div className="flex justify-between items-center text-[#4c4546]">
                         <span className="text-[10px] font-mono uppercase tracking-wider">
-                          AI Resolution Rate
+                          Pipeline Success Rate
                         </span>
                         <CheckCircle className="w-3.5 h-3.5" />
                       </div>
                       <div className="mt-4 flex items-baseline gap-2">
-                        <span className="text-3xl font-bold">89%</span>
-                        <span className="text-[10px] font-mono text-[#7e7576]">
-                          ↑ 5%
+                        <span className="text-3xl font-bold">
+                          {successRate}%
                         </span>
                       </div>
                       <p className="text-[10px] text-[#7e7576] mt-1 font-mono">
-                        Autonomous fixes applied
+                        Completed vs failed pipelines
                       </p>
                     </div>
 
@@ -890,13 +638,12 @@ export default function Home() {
                         <Clock className="w-3.5 h-3.5" />
                       </div>
                       <div className="mt-4 flex items-baseline gap-2">
-                        <span className="text-3xl font-bold">18m</span>
-                        <span className="text-[10px] font-mono text-[#7e7576]">
-                          ↓ 12m
+                        <span className="text-3xl font-bold">
+                          {mttrDisplay}
                         </span>
                       </div>
                       <p className="text-[10px] text-[#7e7576] mt-1 font-mono">
-                        Industry average: 4.2h
+                        Database calculated average
                       </p>
                     </div>
                   </div>
@@ -1068,44 +815,46 @@ export default function Home() {
                         AI Insights
                       </h3>
 
-                      <div className="flex flex-col gap-2">
-                        <span className="text-[9px] font-mono tracking-widest text-[#cfc4c5] uppercase">
-                          Anomaly Detected
-                        </span>
-                        <p className="text-xs leading-relaxed font-light">
-                          Unusual latency spike in &apos;auth-service&apos;
-                          v2.4. Probability of cascaded failure: 72%.
-                        </p>
-                        <button
-                          onClick={() => setActiveTab("Incidents")}
-                          className="w-fit text-[10px] font-mono border border-white text-white py-1 px-3 mt-2 hover:bg-white hover:text-black transition-all"
-                        >
-                          RESOLVE NOW
-                        </button>
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <span className="text-[9px] font-mono tracking-widest text-[#cfc4c5] uppercase">
-                          Optimization
-                        </span>
-                        <p className="text-xs leading-relaxed font-light">
-                          K8s cluster &apos;pro-east-1&apos; is over-provisioned
-                          by 40%. Estimated savings: $4.2k/mo.
-                        </p>
-                        <button className="w-fit text-[10px] font-mono border border-white text-white py-1 px-3 mt-2 hover:bg-white hover:text-black transition-all">
-                          VIEW PLAN
-                        </button>
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <span className="text-[9px] font-mono tracking-widest text-[#cfc4c5] uppercase">
-                          Security Advisory
-                        </span>
-                        <p className="text-xs leading-relaxed font-light">
-                          Exposed API endpoint detected in
-                          &apos;billing-adapter&apos;. Auto-patching initiated.
-                        </p>
-                      </div>
+                      {dashboard.recent_failures &&
+                      dashboard.recent_failures.length > 0 ? (
+                        dashboard.recent_failures
+                          .slice(0, 3)
+                          .map((failure, idx) => (
+                            <div
+                              key={failure.id || idx}
+                              className="flex flex-col gap-2"
+                            >
+                              <span className="text-[9px] font-mono tracking-widest text-[#cfc4c5] uppercase">
+                                Anomaly Detected
+                              </span>
+                              <p className="text-xs leading-relaxed font-light font-mono">
+                                Failure on repository &apos;{failure.repository}
+                                &apos; in workflow &apos;
+                                {failure.workflow_name}&apos;. Status:{" "}
+                                {failure.status.toUpperCase()}.
+                              </p>
+                              <button
+                                onClick={() => {
+                                  setSelectedIncidentId(failure.id);
+                                  setActiveTab("Incidents");
+                                }}
+                                className="w-fit text-[10px] font-mono border border-white text-white py-1 px-3 mt-1 hover:bg-white hover:text-black transition-all"
+                              >
+                                ANALYZE FAILURE
+                              </button>
+                            </div>
+                          ))
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <span className="text-[9px] font-mono tracking-widest text-[#cfc4c5] uppercase">
+                            System Status
+                          </span>
+                          <p className="text-xs leading-relaxed font-light">
+                            All services operational. No active pipeline
+                            failures or resource anomalies detected.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2048,29 +1797,31 @@ export default function Home() {
       <footer className="bg-white border-t border-black p-4 grid grid-cols-2 md:grid-cols-5 text-center items-center divide-x divide-black text-[11px] font-mono">
         <div className="flex flex-col gap-0.5 justify-center py-1">
           <span className="text-[8px] text-[#7e7576] uppercase">
-            THROUGHPUT
+            CONNECTION STATUS
           </span>
-          <span className="font-bold">12.4 req/s</span>
+          <span className="font-bold">
+            {health.status === "ok" ? "ACTIVE" : "OFFLINE"}
+          </span>
         </div>
         <div className="flex flex-col gap-0.5 justify-center py-1">
           <span className="text-[8px] text-[#7e7576] uppercase">
             SUCCESS RATE
           </span>
-          <span className="font-bold text-[#ba1a1a] flex items-center justify-center gap-1">
-            99.8% <span className="text-[9px]">↗</span>
+          <span className="font-bold text-black flex items-center justify-center gap-1">
+            {successRate}%
           </span>
         </div>
         <div className="flex flex-col gap-0.5 justify-center py-1">
           <span className="text-[8px] text-[#7e7576] uppercase">
             AI CONFIDENCE
           </span>
-          <span className="font-bold">88.2% AVG</span>
+          <span className="font-bold">{avgConfidence}</span>
         </div>
         <div className="flex flex-col gap-0.5 justify-center py-1">
           <span className="text-[8px] text-[#7e7576] uppercase">
             SYSTEM HEALTH
           </span>
-          <span className="font-bold">STABLE</span>
+          <span className="font-bold">{health.status.toUpperCase()}</span>
         </div>
         <div className="flex justify-center items-center py-1 col-span-2 md:col-span-1">
           <button
