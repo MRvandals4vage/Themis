@@ -150,11 +150,6 @@ export default function LandingPage() {
       <main className="flex-1 flex items-center justify-center relative z-10 px-6 py-16">
         {step === "landing" && (
           <div className="max-w-4xl text-center flex flex-col items-center gap-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-black text-[9px] font-mono uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>DevOps Incident Remediation Engine</span>
-            </div>
-
             <h2 className="text-4xl md:text-6xl font-bold tracking-tight uppercase leading-none">
               Autonomously Fix <br />
               CI/CD Failures
