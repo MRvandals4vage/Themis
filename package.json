@@ -11,7 +11,7 @@
     "build": "npm run build -w @themis/web",
     "lint": "npm run lint -w @themis/web",
     "format": "prettier --write .",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
