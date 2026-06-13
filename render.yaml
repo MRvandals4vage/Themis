@@ -23,28 +23,14 @@ services:
       - key: GITHUB_WEBHOOK_SECRET
         generateValue: true
 
-  # 2. Next.js Frontend Console
-  - type: web
-    name: themis-console
-    env: docker
-    dockerfilePath: infrastructure/docker/web.Dockerfile
-    dockerContext: .
-    plan: free
-    envVars:
-      - key: NEXT_PUBLIC_API_BASE_URL
-        fromService:
-          type: web
-          name: themis-api
-          property: url
-
-  # 3. Redis Instance
+  # 2. Redis Instance
   - type: redis
     name: themis-redis
     plan: free
     ipAllowList: [] # Only allow internal connections from other services
 
 databases:
-  # 4. PostgreSQL Database
+  # 3. PostgreSQL Database
   - name: themis-postgres
     databaseName: themis
     user: themis
