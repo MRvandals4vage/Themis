@@ -6,23 +6,23 @@
 
 ---
 
-## 🚀 Key Capabilities
+## Key Capabilities
 
-- **🧠 Incident Memory Engine (RAG)**: Automatically creates vector embeddings for historical pipeline incidents. High-similarity searches via Qdrant quickly locate and retrieve successful past patches to inform current failure resolutions.
-- **🕵️ LangGraph Multi-Agent Investigation**: Orchestrates a stateful graph of specialized agents:
+- ** Incident Memory Engine (RAG)**: Automatically creates vector embeddings for historical pipeline incidents. High-similarity searches via Qdrant quickly locate and retrieve successful past patches to inform current failure resolutions.
+- ** LangGraph Multi-Agent Investigation**: Orchestrates a stateful graph of specialized agents:
   1. _Classifier Agent_: Identifies the type of failure (e.g., dependency mismatches, configuration errors).
   2. _Root Cause Agent_: Extracts exact file, line, and log contexts.
   3. _Retriever Agent_: Queries past incident vectors for candidate fixes.
   4. _Fix Generator Agent_: Formulates precise diff proposals.
   5. _Reporter Agent_: Compiles structured confidence-scored markdown remediation summaries.
-- **🛡️ Sandbox Patch Validation**: Before opening repository pull requests, the system sets up isolated sandboxed execution areas to run target syntax linting (`ruff`) and verify scripts (`pytest`) to prevent regressions.
+- ** Sandbox Patch Validation**: Before opening repository pull requests, the system sets up isolated sandboxed execution areas to run target syntax linting (`ruff`) and verify scripts (`pytest`) to prevent regressions.
 - **⚡ Self-Healing Workflows**: When a webhook notifies Themis of a build failure, the background workflow automates the cycle: Analyze log $\rightarrow$ Retrieve fix $\rightarrow$ Sandbox test patch $\rightarrow$ Create branch and open GitHub pull request $\rightarrow$ Simulate recovery.
-- **🏢 Multi-Tenant Organizations**: Real enterprise SaaS topology featuring structured Organizations, Teams, Projects, and Roles.
-- **📊 Repository Fleet Management**: Organization-level control plane managing hundreds of codebases with cross-repository telemetry, aggregated failure risk distributions, and MTTR analytics.
+- ** Multi-Tenant Organizations**: Real enterprise SaaS topology featuring structured Organizations, Teams, Projects, and Roles.
+- ** Repository Fleet Management**: Organization-level control plane managing hundreds of codebases with cross-repository telemetry, aggregated failure risk distributions, and MTTR analytics.
 
 ---
 
-## 🏗️ Architecture & Flow
+##  Architecture & Flow
 
 ### System Overview
 
@@ -57,7 +57,7 @@ sequenceDiagram
 
 ---
 
-## 📁 Repository Structure
+##  Repository Structure
 
 The platform is designed as a unified monorepo structure:
 
@@ -75,7 +75,7 @@ The platform is designed as a unified monorepo structure:
 
 ---
 
-## 🛠️ Local Development
+##  Local Development
 
 ### Prerequisites
 
@@ -131,7 +131,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the console.
 
 ---
 
-## 🧪 Verification & Testing
+##  Verification & Testing
 
 ### Running API Unit Tests
 
