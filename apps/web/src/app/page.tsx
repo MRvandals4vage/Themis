@@ -209,7 +209,7 @@ export default function LandingPage() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex items-center justify-center relative z-10 px-6 py-16">
+      <main className="flex-1 flex items-center justify-center relative z-10 px-6 py-16 pointer-events-none">
         {step === "landing" && (
           <div className="max-w-4xl text-center flex flex-col items-center gap-8">
             <h2 className="text-4xl md:text-6xl font-bold tracking-tight uppercase leading-none">
@@ -226,7 +226,7 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row gap-3 mt-4 font-mono text-xs">
               <button
                 onClick={() => setStep("login")}
-                className="bg-black text-white hover:bg-white hover:text-black border border-black font-bold px-8 py-3.5 transition flex items-center gap-2 uppercase"
+                className="bg-black text-white hover:bg-white hover:text-black border border-black font-bold px-8 py-3.5 transition flex items-center gap-2 uppercase pointer-events-auto"
               >
                 <span>Access Console</span>
                 <ChevronRight className="w-4 h-4" />
@@ -238,7 +238,7 @@ export default function LandingPage() {
                     "_blank"
                   )
                 }
-                className="border border-black bg-white hover:bg-black hover:text-white font-bold px-8 py-3.5 transition flex items-center gap-2 uppercase"
+                className="border border-black bg-white hover:bg-black hover:text-white font-bold px-8 py-3.5 transition flex items-center gap-2 uppercase pointer-events-auto"
               >
                 <GitBranch className="w-4 h-4" />
                 <span>GitHub Repository</span>
@@ -246,7 +246,7 @@ export default function LandingPage() {
             </div>
 
             {/* Feature Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 w-full text-left">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 w-full text-left pointer-events-auto">
               <div className="p-6 bg-white border border-black flex flex-col gap-3">
                 <Database className="w-5 h-5 text-black" />
                 <h3 className="font-bold text-xs uppercase tracking-wider">
@@ -282,7 +282,7 @@ export default function LandingPage() {
         )}
 
         {step === "login" && (
-          <div className="w-full max-w-sm bg-white border border-black p-8 shadow-[4px_4px_0px_#000000] relative">
+          <div className="w-full max-w-sm bg-white border border-black p-8 shadow-[4px_4px_0px_#000000] relative pointer-events-auto">
             <div className="flex flex-col gap-1.5 mb-8 text-center">
               <div className="mx-auto w-10 h-10 border border-black bg-[#fbf9f9] flex items-center justify-center mb-1">
                 <Lock className="w-4 h-4 text-black" />
@@ -358,7 +358,7 @@ export default function LandingPage() {
         )}
 
         {step === "integrate" && (
-          <div className="w-full max-w-sm bg-white border border-black p-8 shadow-[4px_4px_0px_#000000] relative">
+          <div className="w-full max-w-sm bg-white border border-black p-8 shadow-[4px_4px_0px_#000000] relative pointer-events-auto">
             <div className="flex flex-col gap-1.5 mb-8 text-center">
               <div className="mx-auto w-10 h-10 border border-black bg-[#fbf9f9] flex items-center justify-center mb-1">
                 <GitBranch className="w-4 h-4 text-black" />
