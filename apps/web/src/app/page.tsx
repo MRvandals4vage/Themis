@@ -178,8 +178,8 @@ export default function LandingPage() {
       </div>
 
       {/* Top Header */}
-      <header className="relative z-10 border-b border-black bg-white flex items-center justify-between px-8 py-4">
-        <div className="flex items-center gap-3">
+      <header className="relative z-10 bg-transparent flex flex-col items-center justify-center gap-4 px-8 py-6 pointer-events-none">
+        <div className="flex flex-col items-center text-center gap-1 pointer-events-auto">
           <ShieldCheck className="text-black w-6 h-6" />
           <div>
             <h1 className="text-sm font-bold tracking-wider uppercase">
@@ -190,18 +190,18 @@ export default function LandingPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-6 text-xs font-mono">
+        <div className="flex items-center gap-4 text-xs font-mono pointer-events-auto">
           <a
             href="https://github.com/MRvandals4vage/Themis"
             target="_blank"
             rel="noreferrer"
-            className="text-[#4c4546] hover:underline transition"
+            className="border border-black bg-black text-white hover:bg-white hover:text-black text-[10px] uppercase font-bold px-4 py-2 transition"
           >
             Docs
           </a>
           <button
             onClick={() => setStep(hasToken ? "integrate" : "login")}
-            className="border border-black bg-white hover:bg-black hover:text-white text-[10px] uppercase font-bold px-4 py-2 transition"
+            className="border border-black bg-black text-white hover:bg-white hover:text-black text-[10px] uppercase font-bold px-4 py-2 transition"
           >
             {hasToken ? "Configure VCS" : "Sign In"}
           </button>
