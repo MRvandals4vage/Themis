@@ -17,12 +17,7 @@ import {
   AlertTriangle,
   Layers,
   LogOut,
-  User,
-  Settings,
-  Plus,
   RefreshCw,
-  FolderOpen,
-  Sparkles,
 } from "lucide-react";
 import {
   getDashboardSummary,
@@ -48,9 +43,17 @@ type Tab =
 export default function Home() {
   const router = useRouter();
 
-  // Navigation Guard & Theme States
-  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  useEffect(() => {
+    const token = localStorage.getItem("themis_auth_token");
+    const integrated = localStorage.getItem("themis_integrated") === "true";
+    if (!token || !integrated) {
+      router.push("/");
+    }
+  }, [router]);
+
   const [activeTab, setActiveTab] = useState<Tab>("Dashboard");
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [health, setHealth] = useState({
     status: "loading",
@@ -64,8 +67,7 @@ export default function Home() {
     recent_failures: [],
   });
 
-  // Loading states
-  const [loadingDashboard, setLoadingDashboard] = useState(true);
+  // State for simulated workflow run in Agent Workflows tab
   const [workflowStatus, setWorkflowStatus] = useState<
     "idle" | "running" | "completed"
   >("idle");
@@ -103,22 +105,6 @@ export default function Home() {
     (inc) => inc.id === selectedIncidentId
   );
 
-  // Sign out helper
-  const handleSignOut = () => {
-    localStorage.removeItem("themis_auth_token");
-    localStorage.removeItem("themis_integrated");
-    router.push("/");
-  };
-
-  // Guard redirection
-  useEffect(() => {
-    const token = localStorage.getItem("themis_auth_token");
-    const integrated = localStorage.getItem("themis_integrated") === "true";
-    if (!token || !integrated) {
-      router.push("/");
-    }
-  }, [router]);
-
   const fetchExecutions = (incidentId: string) => {
     setLoadingExecutions(true);
     const API_BASE_URL =
@@ -136,7 +122,7 @@ export default function Home() {
           "Could not fetch executions, using mock fallback:",
           err.message
         );
-        if (incidentId === "inc-1" || incidentId === "inc-1-mock") {
+        if (incidentId === "inc-1") {
           setExecutions([
             {
               id: "exec-1",
@@ -201,7 +187,7 @@ export default function Home() {
               output_payload: { summary: "Compiled remediation guide." },
             },
           ]);
-        } else if (incidentId === "inc-2" || incidentId === "inc-2-mock") {
+        } else if (incidentId === "inc-2") {
           setExecutions([
             {
               id: "exec-6",
@@ -227,6 +213,23 @@ export default function Home() {
                 root_cause: {
                   summary:
                     "Rate limiting rules blocking verification service requests.",
+                },
+              },
+            },
+          ]);
+        } else if (incidentId === "inc-3") {
+          setExecutions([
+            {
+              id: "exec-8",
+              incident_id: "inc-3",
+              agent_name: "classifier",
+              status: "succeeded",
+              input_payload: {},
+              output_payload: {
+                classification: {
+                  category: "Dependency Error",
+                  confidence: 0.92,
+                  summary: "Missing dependency",
                 },
               },
             },
@@ -263,11 +266,7 @@ export default function Home() {
           "Could not fetch analysis, using mock fallback:",
           err.message
         );
-        if (
-          selectedIncidentId === "inc-1" ||
-          selectedIncidentId === "inc-1-mock" ||
-          selectedIncidentId === "inc-1"
-        ) {
+        if (selectedIncidentId === "inc-1") {
           setAnalysis({
             confidence: 0.96,
             root_cause:
@@ -290,10 +289,7 @@ export default function Home() {
             ],
           });
           fetchExecutions(selectedIncidentId);
-        } else if (
-          selectedIncidentId === "inc-2" ||
-          selectedIncidentId === "inc-2-mock"
-        ) {
+        } else if (selectedIncidentId === "inc-2") {
           setAnalysis({
             confidence: 0.85,
             root_cause:
@@ -301,6 +297,19 @@ export default function Home() {
             remediation: {
               actions: [
                 "Increase endpoint rate limits or whitelist auth service internal IP addresses.",
+              ],
+            },
+            similar_incidents: [],
+          });
+          fetchExecutions(selectedIncidentId);
+        } else if (selectedIncidentId === "inc-3") {
+          setAnalysis({
+            confidence: 0.92,
+            root_cause:
+              "Missing peer dependency in package.json causing build failure.",
+            remediation: {
+              actions: [
+                "Install missing peer dependency @themis/types in packages/shared.",
               ],
             },
             similar_incidents: [],
@@ -402,6 +411,85 @@ export default function Home() {
     }
   }, [activeTab]);
 
+  const handleCreateTeam = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamName.trim()) return;
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+    fetch(`${API_BASE_URL}/api/v1/organizations/default/teams`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newTeamName }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to create team");
+        return res.json();
+      })
+      .then(() => {
+        setNewTeamName("");
+        setShowCreateTeamModal(false);
+        fetchFleetData();
+        alert("Team created successfully!");
+      })
+      .catch((err) => alert(err.message));
+  };
+
+  const handleCreateProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjectName.trim()) return;
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+    fetch(`${API_BASE_URL}/api/v1/organizations/default/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: newProjectName,
+        description: newProjectDesc,
+        team_id: selectedTeamId ? selectedTeamId : null,
+      }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to create project");
+        return res.json();
+      })
+      .then(() => {
+        setNewProjectName("");
+        setNewProjectDesc("");
+        setSelectedTeamId("");
+        setShowCreateProjectModal(false);
+        fetchFleetData();
+        alert("Project created successfully!");
+      })
+      .catch((err) => alert(err.message));
+  };
+
+  const handleLinkRepo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRepoId || !selectedProjectId) return;
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+    fetch(
+      `${API_BASE_URL}/api/v1/organizations/default/projects/${selectedProjectId}/repositories`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repository_id: selectedRepoId }),
+      }
+    )
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to link repository");
+        return res.json();
+      })
+      .then(() => {
+        setSelectedRepoId("");
+        setSelectedProjectId("");
+        setShowLinkRepoModal(false);
+        fetchFleetData();
+        alert("Repository linked to project successfully!");
+      })
+      .catch((err) => alert(err.message));
+  };
+
   useEffect(() => {
     // Fetch API health and dashboard data on load
     setLoadingDashboard(true);
@@ -417,6 +505,7 @@ export default function Home() {
         }
       })
       .catch(() => {
+        // Mock fallback if backend is offline/local only
         const mockDashboard: DashboardSummary = {
           active_incidents: 12,
           failed_pipelines: 4,
@@ -445,7 +534,7 @@ export default function Home() {
           mttr_seconds: 1080,
           recent_failures: [
             {
-              id: "inc-1-mock",
+              id: "inc-1",
               title: "Database Connection Timeout in us-east-1",
               severity: "critical",
               status: "open",
@@ -454,7 +543,7 @@ export default function Home() {
               created_at: new Date().toISOString(),
             },
             {
-              id: "inc-2-mock",
+              id: "inc-2",
               title: "Auth-Service Latency Spike",
               severity: "high",
               status: "investigating",
@@ -463,7 +552,7 @@ export default function Home() {
               created_at: new Date().toISOString(),
             },
             {
-              id: "inc-3-mock",
+              id: "inc-3",
               title: "Staging Deployment Failure",
               severity: "medium",
               status: "open",
@@ -474,11 +563,10 @@ export default function Home() {
           ],
         };
         setDashboard(mockDashboard);
-        setSelectedIncidentId("inc-1-mock");
+        setSelectedIncidentId("inc-1");
       })
       .finally(() => {
-        // Add subtle delay to show loading state nicely
-        setTimeout(() => setLoadingDashboard(false), 800);
+        setLoadingDashboard(false);
       });
   }, []);
 
@@ -527,107 +615,88 @@ export default function Home() {
   const getSeverityBadgeColor = (severity: string) => {
     switch (severity.toLowerCase()) {
       case "critical":
-        return "bg-red-500/10 border-red-500/30 text-red-400";
       case "high":
-        return "bg-amber-500/10 border-amber-500/30 text-amber-400";
+        return "border-black bg-black text-white";
       case "medium":
       default:
-        return "bg-zinc-500/10 border-zinc-500/30 text-zinc-400";
+        return "border-black text-black bg-transparent";
     }
   };
 
-  return (
-    <div className="min-h-screen bg-black text-zinc-100 flex flex-col font-sans relative overflow-hidden">
-      {/* Background ambient grids */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293708_1px,transparent_1px),linear-gradient(to_bottom,#1f293708_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none"></div>
+  const hasClassifier = executions.some((e) => e.agent_name === "classifier");
+  const hasRootCause = executions.some(
+    (e) => e.agent_name === "root_cause_agent"
+  );
+  const hasRetriever = executions.some((e) => e.agent_name === "retriever");
+  const hasFixGenerator = executions.some(
+    (e) => e.agent_name === "fix_generator"
+  );
+  const hasReporter = executions.some((e) => e.agent_name === "reporter");
 
+  return (
+    <div className="min-h-screen bg-[#fbf9f9] text-[#1b1c1c] flex flex-col font-sans">
       {/* Top Header */}
-      <header className="relative z-20 border-b border-white/10 backdrop-blur-md bg-zinc-950/70 flex items-center justify-between px-6 py-3.5">
+      <header className="border-b border-black flex items-center justify-between px-6 py-3 bg-white">
         <div className="flex items-center gap-8 w-full max-w-4xl">
           <div className="flex items-center gap-3">
-            <ShieldCheck className="text-violet-400 w-6 h-6 filter drop-shadow-[0_0_8px_rgba(167,139,250,0.5)]" />
+            <ShieldCheck className="text-black w-6 h-6" />
             <div>
-              <h1 className="text-sm font-black tracking-wider uppercase">
+              <h1 className="text-sm font-bold tracking-wider uppercase">
                 Themis
               </h1>
-              <p className="text-[9px] text-zinc-400 font-mono tracking-widest uppercase">
+              <p className="text-[10px] text-[#4c4546] font-mono tracking-widest uppercase">
                 AI OPERATIONS
               </p>
             </div>
           </div>
           <div className="relative flex-1 max-w-md hidden md:block">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#7e7576]" />
             <input
               type="text"
-              placeholder="Search incidents, pipelines, or agents..."
+              placeholder="Search operations, agents, or logs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-4 text-xs font-mono focus:outline-none focus:border-violet-500/50 text-zinc-300 transition"
+              className="w-full bg-[#fbf9f9] border border-black py-2 pl-9 pr-4 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-black"
             />
           </div>
         </div>
 
         <div className="flex items-center gap-4 text-xs">
-          <span className="font-mono text-[10px] bg-white/5 border border-white/10 px-2 py-1 rounded-md text-zinc-400 hidden sm:inline-block">
-            API status:{" "}
-            <span
-              className={
-                health.status === "loading"
-                  ? "text-amber-400"
-                  : health.status === "degraded"
-                    ? "text-red-400 font-bold"
-                    : "text-emerald-400"
-              }
-            >
-              {health.status}
-            </span>
-          </span>
-          <Bell className="w-4 h-4 cursor-pointer text-zinc-400 hover:text-white transition" />
-          <HelpCircle className="w-4 h-4 cursor-pointer text-zinc-400 hover:text-white transition" />
-          <div className="h-5 w-[1px] bg-white/10"></div>
-
-          {/* Profile Dropdown Container */}
-          <div className="relative">
+          <button className="hover:underline hidden sm:block">Support</button>
+          <Bell className="w-4 h-4 cursor-pointer hover:opacity-75" />
+          <HelpCircle className="w-4 h-4 cursor-pointer hover:opacity-75" />
+          <div className="h-4 w-[1px] bg-black"></div>
+          <div className="relative flex items-center gap-2">
             <button
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="flex items-center gap-2 focus:outline-none group"
+              className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center font-bold text-[10px] tracking-tighter hover:opacity-85 focus:outline-none"
             >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-violet-600 to-fuchsia-600 text-white flex items-center justify-center font-bold text-[11px] filter drop-shadow-md">
-                JD
-              </div>
+              JD
             </button>
+            <span className="font-mono text-[10px] hidden lg:inline-block">
+              API: {health.status}
+            </span>
 
             {profileDropdownOpen && (
-              <div className="absolute right-0 mt-2.5 w-56 bg-zinc-950 border border-white/10 rounded-xl shadow-2xl p-4 flex flex-col gap-3.5 z-30 backdrop-blur-xl animate-scale-up">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-bold text-white">John Doe</span>
-                  <span className="text-[10px] text-zinc-400 font-mono">
-                    admin@themis.ai
-                  </span>
-                  <span className="text-[9px] bg-violet-500/10 text-violet-400 border border-violet-500/20 px-1.5 py-0.5 rounded w-max mt-1 font-mono uppercase">
-                    Enterprise Owner
+              <div className="absolute right-0 top-8 w-48 bg-white border border-black p-3 flex flex-col gap-2 z-30 font-mono text-[10px] text-[#1b1c1c] shadow-lg">
+                <div className="flex flex-col gap-0.5 border-b border-black pb-2">
+                  <span className="font-bold">John Doe</span>
+                  <span className="text-[#7e7576]">admin@themis.ai</span>
+                  <span className="text-[8px] border border-black w-max px-1.5 py-0.5 mt-1 bg-black text-white uppercase font-bold">
+                    Owner
                   </span>
                 </div>
-                <div className="h-[1px] bg-white/5"></div>
-                <div className="flex flex-col gap-1.5 text-xs text-zinc-300">
-                  <button
-                    onClick={() => {
-                      setActiveTab("Settings");
-                      setProfileDropdownOpen(false);
-                    }}
-                    className="flex items-center gap-2 hover:text-white transition py-1 text-left"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                    <span>Account Settings</span>
-                  </button>
-                  <button
-                    onClick={handleSignOut}
-                    className="flex items-center gap-2 text-red-400 hover:text-red-300 transition py-1 text-left"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem("themis_auth_token");
+                    localStorage.removeItem("themis_integrated");
+                    window.location.href = "/";
+                  }}
+                  className="flex items-center gap-1.5 text-red-600 hover:underline text-left mt-1"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </button>
               </div>
             )}
           </div>
@@ -635,10 +704,10 @@ export default function Home() {
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-[220px_1fr] relative z-10">
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-[240px_1fr] border-b border-black">
         {/* Left Sidebar */}
-        <aside className="border-r border-white/10 flex flex-col justify-between bg-zinc-950/40 backdrop-blur-md">
-          <div className="flex flex-col p-4 gap-1.5">
+        <aside className="border-r border-black flex flex-col justify-between bg-white">
+          <div className="flex flex-col p-4 gap-2">
             {[
               "Dashboard",
               "Incidents",
@@ -655,17 +724,22 @@ export default function Home() {
                 <button
                   key={tabName}
                   onClick={() => setActiveTab(tabName as Tab)}
-                  className={`w-full text-left py-2 px-3 text-xs tracking-wide font-medium flex items-center justify-between rounded-lg transition-all duration-150 border ${
+                  className={`w-full text-left py-2 px-3 text-xs tracking-wide font-medium flex items-center justify-between border ${
                     isActive
-                      ? "bg-white/10 text-white border-white/10 font-bold"
-                      : "bg-transparent text-zinc-400 border-transparent hover:bg-white/5 hover:text-zinc-200"
-                  }`}
+                      ? "bg-black text-white border-black"
+                      : "bg-transparent text-[#1b1c1c] border-transparent hover:bg-[#f5f3f3]"
+                  } transition-all duration-75`}
+                  style={{ borderRadius: "0px" }}
                 >
                   <span>{tabName}</span>
                   {tabName === "Incidents" &&
                     dashboard.active_incidents > 0 && (
                       <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${isActive ? "bg-white text-zinc-900" : "bg-violet-500/20 text-violet-300 border border-violet-500/30"}`}
+                        className={`text-[9px] px-1 font-mono ${
+                          isActive
+                            ? "bg-white text-black"
+                            : "bg-black text-white"
+                        }`}
                       >
                         {dashboard.active_incidents}
                       </span>
@@ -675,14 +749,15 @@ export default function Home() {
             })}
           </div>
 
-          <div className="p-4 border-t border-white/10">
+          <div className="p-4 border-t border-black">
             <button
               onClick={() => {
                 setActiveTab("Agent Workflows");
                 setWorkflowStatus("running");
                 setWorkflowSteps(0);
               }}
-              className="w-full bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold py-2 rounded-lg transition-all border border-violet-500 shadow-[0_0_12px_rgba(124,58,237,0.3)]"
+              className="w-full bg-black text-white text-xs font-bold py-2 border border-black hover:bg-white hover:text-black transition-all duration-150"
+              style={{ borderRadius: "0px" }}
             >
               DEPLOY AGENT
             </button>
@@ -690,19 +765,11 @@ export default function Home() {
         </aside>
 
         {/* Workspace Display Area */}
-        <main className="flex flex-col bg-black overflow-auto">
+        <main className="flex flex-col bg-[#fbf9f9] overflow-auto">
           {loadingDashboard ? (
-            /* Root Loading Animation */
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center py-24">
-              <RefreshCw className="w-10 h-10 text-violet-400 animate-spin" />
-              <div className="flex flex-col gap-1">
-                <span className="text-sm font-bold text-white">
-                  Loading Workspace Data...
-                </span>
-                <span className="text-[10px] text-zinc-500 font-mono">
-                  Synchronizing state machine with cluster contexts
-                </span>
-              </div>
+            <div className="flex-grow flex flex-col items-center justify-center gap-3 py-36 font-mono text-xs text-[#1b1c1c]">
+              <RefreshCw className="w-8 h-8 animate-spin text-black" />
+              <span>SYNCHRONIZING CONTAINER ORCHESTRATORS...</span>
             </div>
           ) : (
             <>
@@ -711,17 +778,17 @@ export default function Home() {
                 <div className="p-6 flex flex-col gap-6">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                      <p className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">
+                      <p className="text-[10px] text-[#4c4546] font-mono tracking-widest uppercase">
                         EXECUTIVE OVERVIEW
                       </p>
-                      <h2 className="text-xl font-black tracking-tight text-white uppercase">
+                      <h2 className="text-xl font-bold tracking-tight uppercase">
                         OPERATIONS DASHBOARD
                       </h2>
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => alert("Exporting report...")}
-                        className="border border-white/10 text-xs font-mono px-3.5 py-2 rounded-lg hover:bg-white/10 bg-white/5 text-zinc-300 transition-all"
+                        className="border border-black text-xs font-mono px-3 py-1.5 hover:bg-black hover:text-white transition-all bg-white"
                       >
                         Export PDF
                       </button>
@@ -744,13 +811,11 @@ export default function Home() {
                                 );
                               })
                               .catch(() =>
-                                alert(
-                                  "Using simulated offline AI report response."
-                                )
+                                alert("Failed to fetch. Check backend server.")
                               );
                           }
                         }}
-                        className="bg-white hover:bg-zinc-200 text-black text-xs font-bold px-3.5 py-2 rounded-lg transition-all"
+                        className="bg-black text-white text-xs font-mono px-3 py-1.5 hover:bg-white hover:text-black border border-black transition-all"
                       >
                         Generate AI Report
                       </button>
@@ -759,82 +824,78 @@ export default function Home() {
 
                   {/* Metrics Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="border border-white/10 bg-zinc-950/40 p-4 rounded-xl backdrop-blur-md hover:border-white/25 transition flex flex-col justify-between">
-                      <div className="flex justify-between items-center text-zinc-400">
+                    <div className="border border-black bg-white p-4 flex flex-col justify-between">
+                      <div className="flex justify-between items-center text-[#4c4546]">
                         <span className="text-[10px] font-mono uppercase tracking-wider">
                           Active Incidents
                         </span>
-                        <AlertTriangle className="w-4 h-4 text-violet-400" />
+                        <AlertTriangle className="w-3.5 h-3.5" />
                       </div>
                       <div className="mt-4 flex items-baseline gap-2">
-                        <span className="text-3xl font-extrabold text-white">
+                        <span className="text-3xl font-bold">
                           {dashboard.active_incidents}
                         </span>
-                        <span className="text-xs font-mono text-red-400 font-bold">
+                        <span className="text-xs font-mono text-[#ba1a1a] font-bold">
                           +2
                         </span>
                       </div>
-                      <p className="text-[9px] text-zinc-500 mt-1 font-mono">
-                        Across active cluster contexts
+                      <p className="text-[10px] text-[#7e7576] mt-1 font-mono">
+                        Across active Kubernetes contexts
                       </p>
                     </div>
 
-                    <div className="border border-white/10 bg-zinc-950/40 p-4 rounded-xl backdrop-blur-md hover:border-white/25 transition flex flex-col justify-between">
-                      <div className="flex justify-between items-center text-zinc-400">
+                    <div className="border border-black bg-white p-4 flex flex-col justify-between">
+                      <div className="flex justify-between items-center text-[#4c4546]">
                         <span className="text-[10px] font-mono uppercase tracking-wider">
                           Failed Pipelines
                         </span>
-                        <GitBranch className="w-4 h-4 text-fuchsia-400" />
+                        <GitBranch className="w-3.5 h-3.5" />
                       </div>
                       <div className="mt-4 flex items-baseline gap-2">
-                        <span className="text-3xl font-extrabold text-white">
+                        <span className="text-3xl font-bold">
                           0{dashboard.failed_pipelines}
                         </span>
-                        <span className="text-[10px] font-mono text-zinc-500">
+                        <span className="text-[10px] font-mono text-[#7e7576]">
                           stable
                         </span>
                       </div>
-                      <p className="text-[9px] text-zinc-500 mt-1 font-mono">
+                      <p className="text-[10px] text-[#7e7576] mt-1 font-mono">
                         Last 24 hours
                       </p>
                     </div>
 
-                    <div className="border border-white/10 bg-zinc-950/40 p-4 rounded-xl backdrop-blur-md hover:border-white/25 transition flex flex-col justify-between">
-                      <div className="flex justify-between items-center text-zinc-400">
+                    <div className="border border-black bg-white p-4 flex flex-col justify-between">
+                      <div className="flex justify-between items-center text-[#4c4546]">
                         <span className="text-[10px] font-mono uppercase tracking-wider">
                           AI Resolution Rate
                         </span>
-                        <CheckCircle className="w-4 h-4 text-emerald-400" />
+                        <CheckCircle className="w-3.5 h-3.5" />
                       </div>
                       <div className="mt-4 flex items-baseline gap-2">
-                        <span className="text-3xl font-extrabold text-white">
-                          89%
-                        </span>
-                        <span className="text-[10px] font-mono text-emerald-400">
+                        <span className="text-3xl font-bold">89%</span>
+                        <span className="text-[10px] font-mono text-[#7e7576]">
                           ↑ 5%
                         </span>
                       </div>
-                      <p className="text-[9px] text-zinc-500 mt-1 font-mono">
+                      <p className="text-[10px] text-[#7e7576] mt-1 font-mono">
                         Autonomous fixes applied
                       </p>
                     </div>
 
-                    <div className="border border-white/10 bg-zinc-950/40 p-4 rounded-xl backdrop-blur-md hover:border-white/25 transition flex flex-col justify-between">
-                      <div className="flex justify-between items-center text-zinc-400">
+                    <div className="border border-black bg-white p-4 flex flex-col justify-between">
+                      <div className="flex justify-between items-center text-[#4c4546]">
                         <span className="text-[10px] font-mono uppercase tracking-wider">
                           Avg. Recovery (MTTR)
                         </span>
-                        <Clock className="w-4 h-4 text-indigo-400" />
+                        <Clock className="w-3.5 h-3.5" />
                       </div>
                       <div className="mt-4 flex items-baseline gap-2">
-                        <span className="text-3xl font-extrabold text-white">
-                          18m
-                        </span>
-                        <span className="text-[10px] font-mono text-zinc-500">
+                        <span className="text-3xl font-bold">18m</span>
+                        <span className="text-[10px] font-mono text-[#7e7576]">
                           ↓ 12m
                         </span>
                       </div>
-                      <p className="text-[9px] text-zinc-500 mt-1 font-mono">
+                      <p className="text-[10px] text-[#7e7576] mt-1 font-mono">
                         Industry average: 4.2h
                       </p>
                     </div>
@@ -844,24 +905,27 @@ export default function Home() {
                   <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
                     {/* Charts Area */}
                     <div className="flex flex-col gap-6">
-                      <div className="border border-white/10 bg-zinc-950/40 p-6 rounded-xl backdrop-blur-md">
+                      {/* Pipeline Health Trend */}
+                      <div className="border border-black bg-white p-6">
                         <div className="flex justify-between items-center mb-6">
-                          <h3 className="text-xs font-bold tracking-wider uppercase text-white">
+                          <h3 className="text-xs font-bold tracking-wider uppercase">
                             Pipeline Health Trend
                           </h3>
                           <div className="flex gap-4 text-[10px] font-mono">
                             <span className="flex items-center gap-1.5">
-                              <span className="w-2.5 h-2.5 bg-violet-500 rounded-sm"></span>{" "}
+                              <span className="w-2.5 h-2.5 bg-black"></span>{" "}
                               Success
                             </span>
                             <span className="flex items-center gap-1.5">
-                              <span className="w-2.5 h-0.5 bg-zinc-600"></span>{" "}
+                              <span className="w-2.5 h-0.5 bg-[#cfc4c5]"></span>{" "}
                               Failure
                             </span>
                           </div>
                         </div>
-                        <div className="h-48 w-full border border-white/5 rounded-xl flex items-end relative overflow-hidden bg-zinc-950/20">
+                        {/* SVG Chart */}
+                        <div className="h-48 w-full border border-black flex items-end relative overflow-hidden bg-[#fbf9f9]">
                           <svg className="w-full h-full absolute inset-0">
+                            {/* Grid lines */}
                             {[1, 2, 3, 4, 5].map((i) => (
                               <line
                                 key={i}
@@ -869,20 +933,22 @@ export default function Home() {
                                 y1={`${i * 20}%`}
                                 x2="100%"
                                 y2={`${i * 20}%`}
-                                stroke="#ffffff08"
+                                stroke="#e3e2e2"
                                 strokeWidth="1"
                               />
                             ))}
+                            {/* Success Trend */}
                             <path
                               d="M 0 110 L 80 90 L 160 100 L 240 80 L 320 90 L 400 70 L 480 85 L 560 65 L 640 75 L 720 60"
                               fill="none"
-                              stroke="#a78bfa"
+                              stroke="black"
                               strokeWidth="2"
                             />
+                            {/* Failure Trend */}
                             <path
                               d="M 0 140 L 80 145 L 160 135 L 240 140 L 320 130 L 400 135 L 480 120 L 560 125 L 640 115 L 720 120"
                               fill="none"
-                              stroke="#4b5563"
+                              stroke="#7e7576"
                               strokeWidth="1.5"
                               strokeDasharray="4 2"
                             />
@@ -890,25 +956,27 @@ export default function Home() {
                         </div>
                       </div>
 
+                      {/* bottom trend and failures */}
                       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
-                        <div className="border border-white/10 bg-zinc-950/40 p-4 rounded-xl">
-                          <h3 className="text-xs font-bold tracking-wider uppercase mb-4 text-white">
+                        <div className="border border-black bg-white p-4">
+                          <h3 className="text-xs font-bold tracking-wider uppercase mb-4">
                             Incident Trends
                           </h3>
-                          <div className="h-32 flex items-end justify-between gap-1.5 px-2 border-b border-white/10 pb-1">
+                          {/* Bar chart mockup */}
+                          <div className="h-32 flex items-end justify-between gap-1 px-2 border-b border-black">
                             {[40, 75, 45, 95, 60, 50, 30].map((h, idx) => (
                               <div
                                 key={idx}
                                 className="flex-1 flex flex-col items-center"
                               >
                                 <div
-                                  className="bg-violet-500/70 hover:bg-violet-500 w-full rounded-t-sm transition-all"
+                                  className="bg-black w-full"
                                   style={{ height: `${h}%` }}
                                 ></div>
                               </div>
                             ))}
                           </div>
-                          <div className="flex justify-between text-[8px] font-mono text-zinc-500 mt-2">
+                          <div className="flex justify-between text-[8px] font-mono text-[#7e7576] mt-2">
                             <span>MON</span>
                             <span>WED</span>
                             <span>FRI</span>
@@ -916,71 +984,127 @@ export default function Home() {
                           </div>
                         </div>
 
-                        <div className="border border-white/10 bg-zinc-950/40 p-4 rounded-xl overflow-auto">
-                          <h3 className="text-xs font-bold tracking-wider uppercase mb-4 text-white">
+                        <div className="border border-black bg-white p-4 overflow-auto">
+                          <h3 className="text-xs font-bold tracking-wider uppercase mb-4">
                             Recent Failures
                           </h3>
                           <table className="w-full text-left text-[11px] font-mono border-collapse">
                             <thead>
-                              <tr className="border-b border-white/10 text-zinc-400">
+                              <tr className="border-b border-black text-[#4c4546]">
                                 <th className="pb-2 font-bold">SERVICE</th>
-                                <th className="pb-2 font-bold">ENV</th>
+                                <th className="pb-2 font-bold">ENVIRONMENT</th>
                                 <th className="pb-2 font-bold">ERROR TYPE</th>
+                                <th className="pb-2 font-bold">DURATION</th>
                                 <th className="pb-2 font-bold">STATUS</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {dashboard.recent_failures.map((inc, idx) => (
-                                <tr
-                                  key={idx}
-                                  className="border-b border-white/5 hover:bg-white/5 transition"
-                                >
-                                  <td className="py-2 text-white font-bold">
-                                    {inc.repository}
-                                  </td>
-                                  <td className="py-2 text-zinc-400">Prod</td>
-                                  <td className="py-2 text-zinc-300 truncate max-w-[120px]">
-                                    {inc.title}
-                                  </td>
-                                  <td className="py-2">
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 uppercase font-bold">
-                                      {inc.status}
-                                    </span>
+                              {dashboard.recent_failures &&
+                              dashboard.recent_failures.length > 0 ? (
+                                dashboard.recent_failures.map((inc, idx) => {
+                                  const env =
+                                    inc.workflow_name
+                                      ?.toLowerCase()
+                                      .includes("production") ||
+                                    inc.severity === "critical"
+                                      ? "Production"
+                                      : "Staging";
+                                  const createdDate = new Date(inc.created_at);
+                                  const durationMs =
+                                    Date.now() - createdDate.getTime();
+                                  const durationMins = Math.max(
+                                    Math.round(durationMs / 60000),
+                                    1
+                                  );
+                                  const durStr =
+                                    durationMs > 0 && durationMins < 60
+                                      ? `${durationMins}m ago`
+                                      : createdDate.toLocaleTimeString();
+
+                                  return (
+                                    <tr
+                                      key={inc.id || idx}
+                                      onClick={() => {
+                                        setSelectedIncidentId(inc.id);
+                                        setActiveTab("Incidents");
+                                      }}
+                                      className="border-b border-[#efeded] last:border-b-0 hover:bg-[#f5f3f3] cursor-pointer"
+                                    >
+                                      <td className="py-2.5 font-bold">
+                                        {inc.repository}
+                                      </td>
+                                      <td className="py-2.5">{env}</td>
+                                      <td className="py-2.5 text-[#ba1a1a]">
+                                        {inc.title}
+                                      </td>
+                                      <td className="py-2.5">{durStr}</td>
+                                      <td className="py-2.5">
+                                        <span className="border border-black px-1.5 py-0.5 text-[9px] font-bold">
+                                          {inc.status.toUpperCase()}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                              ) : (
+                                <tr>
+                                  <td
+                                    colSpan={5}
+                                    className="py-4 text-center text-xs text-[#7e7576] italic font-mono"
+                                  >
+                                    No recent failures reported.
                                   </td>
                                 </tr>
-                              ))}
+                              )}
                             </tbody>
                           </table>
                         </div>
                       </div>
                     </div>
 
-                    {/* Right column sidebar */}
-                    <div className="flex flex-col gap-6">
-                      <div className="border border-white/10 bg-zinc-950/40 p-4 rounded-xl">
-                        <h3 className="text-xs font-bold tracking-wider uppercase mb-4 text-white">
-                          Pipeline Queue
-                        </h3>
-                        <div className="flex flex-col gap-3">
-                          {dashboard.pipeline_history.map((run, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0"
-                            >
-                              <div>
-                                <h4 className="text-xs font-bold text-white">
-                                  {run.repository}
-                                </h4>
-                                <p className="text-[10px] text-zinc-500 font-mono">
-                                  {run.workflow_name} ({run.commit_sha})
-                                </p>
-                              </div>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold font-mono">
-                                FAILED
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                    {/* AI Insights Sidebar */}
+                    <div className="border border-black bg-black text-white p-6 flex flex-col gap-6">
+                      <h3 className="text-xs font-bold tracking-widest uppercase border-b border-[#7e7576] pb-3">
+                        AI Insights
+                      </h3>
+
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[9px] font-mono tracking-widest text-[#cfc4c5] uppercase">
+                          Anomaly Detected
+                        </span>
+                        <p className="text-xs leading-relaxed font-light">
+                          Unusual latency spike in &apos;auth-service&apos;
+                          v2.4. Probability of cascaded failure: 72%.
+                        </p>
+                        <button
+                          onClick={() => setActiveTab("Incidents")}
+                          className="w-fit text-[10px] font-mono border border-white text-white py-1 px-3 mt-2 hover:bg-white hover:text-black transition-all"
+                        >
+                          RESOLVE NOW
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[9px] font-mono tracking-widest text-[#cfc4c5] uppercase">
+                          Optimization
+                        </span>
+                        <p className="text-xs leading-relaxed font-light">
+                          K8s cluster &apos;pro-east-1&apos; is over-provisioned
+                          by 40%. Estimated savings: $4.2k/mo.
+                        </p>
+                        <button className="w-fit text-[10px] font-mono border border-white text-white py-1 px-3 mt-2 hover:bg-white hover:text-black transition-all">
+                          VIEW PLAN
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[9px] font-mono tracking-widest text-[#cfc4c5] uppercase">
+                          Security Advisory
+                        </span>
+                        <p className="text-xs leading-relaxed font-light">
+                          Exposed API endpoint detected in
+                          &apos;billing-adapter&apos;. Auto-patching initiated.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -989,248 +1113,316 @@ export default function Home() {
 
               {/* TAB: INCIDENTS */}
               {activeTab === "Incidents" && (
-                <div className="p-6 grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-6 flex-1 min-h-[calc(100vh-80px)]">
-                  {/* Left Column failures list */}
-                  <div className="border border-white/10 bg-zinc-950/40 p-4 rounded-xl flex flex-col gap-4">
-                    <h3 className="text-xs font-bold tracking-wider text-white uppercase">
-                      Active Failures
-                    </h3>
-                    <div className="flex flex-col gap-2.5 overflow-auto">
-                      {dashboard.recent_failures.map((inc) => (
-                        <button
-                          key={inc.id}
-                          onClick={() => {
-                            setSelectedIncidentId(inc.id);
-                            setRemediationDone(false);
-                          }}
-                          className={`p-3 text-left border rounded-lg transition-all ${
-                            selectedIncidentId === inc.id
-                              ? "border-violet-500 bg-violet-500/10 text-white font-bold"
-                              : "border-white/5 bg-white/5 text-zinc-400 hover:border-white/10"
-                          }`}
-                        >
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-[9px] font-mono uppercase tracking-wider text-zinc-500">
-                              {inc.repository}
-                            </span>
-                            <span
-                              className={`text-[8px] font-mono px-1.5 py-0.5 rounded border uppercase ${getSeverityBadgeColor(inc.severity)}`}
-                            >
-                              {inc.severity}
-                            </span>
+                <div className="flex-1 grid grid-cols-1 lg:grid-cols-[340px_1fr] border-t border-black">
+                  {/* Incidents List */}
+                  <div className="border-r border-black bg-white flex flex-col">
+                    <div className="p-4 border-b border-black flex justify-between items-center">
+                      <h3 className="text-xs font-bold tracking-wider uppercase">
+                        Active Incidents ({dashboard.recent_failures.length})
+                      </h3>
+                    </div>
+                    <div className="flex-1 divide-y divide-black">
+                      {dashboard.recent_failures.map((inc) => {
+                        const isSelected = selectedIncidentId === inc.id;
+                        return (
+                          <div
+                            key={inc.id}
+                            onClick={() => {
+                              setSelectedIncidentId(inc.id);
+                              setRemediationDone(false);
+                            }}
+                            className={`p-4 cursor-pointer hover:bg-[#f5f3f3] transition-all ${
+                              isSelected ? "bg-[#efeded]" : ""
+                            }`}
+                          >
+                            <div className="flex justify-between items-center text-[9px] font-mono mb-2">
+                              <span className="border border-black px-1 uppercase tracking-tight font-bold">
+                                {inc.severity}
+                              </span>
+                              <span className="text-[#7e7576]">14:22 UTC</span>
+                            </div>
+                            <h4 className="text-xs font-bold leading-snug mb-1">
+                              {inc.title}
+                            </h4>
+                            <p className="text-[9px] font-mono text-[#7e7576]">
+                              {inc.repository} / {inc.workflow_name}
+                            </p>
                           </div>
-                          <h4 className="text-xs truncate text-zinc-200">
-                            {inc.title}
-                          </h4>
-                        </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Right Column incident details */}
-                  <div className="flex flex-col gap-6">
-                    {selectedIncident ? (
-                      <div className="border border-white/10 bg-zinc-950/40 p-6 rounded-xl flex flex-col gap-6">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-4">
-                          <div>
-                            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
-                              {selectedIncident.repository}
-                            </span>
-                            <h2 className="text-lg font-black text-white">
-                              {selectedIncident.title}
-                            </h2>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                setWorkflowStatus("running");
-                                setWorkflowSteps(0);
-                                fetchExecutions(selectedIncident.id);
-                              }}
-                              disabled={
-                                workflowStatus === "running" || loadingAnalysis
-                              }
-                              className="border border-white/10 bg-white/5 text-zinc-300 text-xs font-mono px-3 py-1.5 rounded-lg flex items-center gap-1.5 hover:bg-white/10 disabled:opacity-50"
-                            >
-                              <Play className="w-3.5 h-3.5" />
-                              <span>
-                                {workflowStatus === "running"
-                                  ? "Running Graph..."
-                                  : "Run AI Graph"}
-                              </span>
-                            </button>
-                            <button
-                              onClick={triggerRemediation}
-                              disabled={remediating || remediationDone}
-                              className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold px-4 py-1.5 rounded-lg flex items-center gap-1.5 transition disabled:opacity-50"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>
-                                {remediating
-                                  ? "Applying..."
-                                  : remediationDone
-                                    ? "Patched"
-                                    : "Autonomously Remediate"}
-                              </span>
-                            </button>
-                          </div>
+                  {/* Incident Details view */}
+                  <div className="p-6 flex flex-col gap-6">
+                    <div className="flex justify-between items-start border-b border-black pb-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[9px] font-mono bg-black text-white px-2 py-0.5">
+                            CASE #
+                            {selectedIncidentId?.slice(0, 8).toUpperCase() ||
+                              "INC-942-03"}
+                          </span>
+                          <span className="text-[9px] font-mono border border-black px-2 py-0.5">
+                            {analysis?.category?.toUpperCase() ||
+                              "INVESTIGATION IN PROGRESS"}
+                          </span>
                         </div>
+                        <h2 className="text-2xl font-bold tracking-tight uppercase">
+                          {selectedIncident?.title ||
+                            "DATABASE CONNECTION TIMEOUT"}
+                        </h2>
+                        <p className="text-xs leading-relaxed text-[#4c4546] max-w-2xl mt-1">
+                          {analysis?.summary ||
+                            "Forensic analysis of a cascading failure within the " +
+                              "primary build service pipeline."}
+                        </p>
+                      </div>
 
-                        {loadingAnalysis ? (
-                          /* Loading skeleton animation */
-                          <div className="flex flex-col gap-4 animate-pulse">
-                            <div className="h-4 bg-white/5 rounded-md w-1/3"></div>
-                            <div className="h-24 bg-white/5 rounded-xl w-full"></div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="h-20 bg-white/5 rounded-xl"></div>
-                              <div className="h-20 bg-white/5 rounded-xl"></div>
+                      <div className="border border-black bg-white p-4 text-center">
+                        <span className="text-[9px] font-mono text-[#7e7576] block uppercase mb-1">
+                          AI Confidence
+                        </span>
+                        <span className="text-3xl font-bold">
+                          {analysis
+                            ? `${Math.round(analysis.confidence * 100)}%`
+                            : "98%"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {loadingAnalysis ? (
+                      <div className="border border-black bg-white p-12 text-center flex flex-col items-center justify-center gap-3 font-mono text-xs text-[#1b1c1c] my-6">
+                        <RefreshCw className="w-6 h-6 animate-spin text-black" />
+                        <span>RUNNING NEURAL PIPELINE CORRELATIONS...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Middle details split grid */}
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                          {/* Left Column: Root Cause analysis & Latency profile */}
+                          <div className="flex flex-col gap-6">
+                            <div className="border border-black bg-white p-4">
+                              <div className="flex items-center gap-2 mb-4 text-xs font-bold">
+                                <FileText className="w-4 h-4" />
+                                <span>ROOT CAUSE ANALYSIS</span>
+                              </div>
+                              <div className="bg-black text-white p-4 font-mono text-[10px] leading-relaxed mb-4">
+                                <p className="text-[#cfc4c5]">
+                                  DETECTED:{" "}
+                                  {analysis?.root_cause ||
+                                    "Excessive connection pooling exhaustion caused by " +
+                                      "'ORDER BY' operations on non-indexed transaction table."}
+                                </p>
+                              </div>
+                              <div className="border border-black bg-[#fbf9f9] p-3 font-mono text-[9px] text-[#4c4546] overflow-x-auto">
+                                <p className="text-[#7e7576]">
+                                  SERVICE:{" "}
+                                  {selectedIncident?.repository ||
+                                    "payment-gateway"}
+                                </p>
+                                <p className="mt-2 text-[#7e7576]">
+                                  WORKFLOW:{" "}
+                                  {selectedIncident?.workflow_name ||
+                                    "deploy-production"}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Latency profile */}
+                            <div className="border border-black bg-white p-4">
+                              <h3 className="text-xs font-bold tracking-wider uppercase mb-4">
+                                Latency Profile
+                              </h3>
+                              <div className="h-24 flex items-end gap-1 px-4 border-b border-black">
+                                {[20, 30, 25, 90, 80, 100, 60, 45, 30].map(
+                                  (h, i) => (
+                                    <div
+                                      key={i}
+                                      className="flex-1 bg-black"
+                                      style={{ height: `${h}%` }}
+                                    ></div>
+                                  )
+                                )}
+                              </div>
+                              <div className="flex justify-between text-[8px] font-mono text-[#7e7576] mt-2">
+                                <span>T-30M</span>
+                                <span>NOW</span>
+                                <span>+15M EST</span>
+                              </div>
                             </div>
                           </div>
-                        ) : (
-                          <>
-                            {/* Analysis metrics row */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                              <div className="border border-white/5 bg-white/5 p-3 rounded-lg">
-                                <span className="text-[9px] font-mono text-zinc-500 block uppercase">
-                                  Confidence
-                                </span>
-                                <span className="text-xl font-bold text-white">
-                                  {analysis
-                                    ? `${Math.round(analysis.confidence * 100)}%`
-                                    : "98%"}
-                                </span>
+
+                          {/* Right Column: Timeline & Proposed Remediation/Actions */}
+                          <div className="flex flex-col gap-6">
+                            <div className="border border-black bg-white p-4">
+                              <div className="flex items-center gap-2 mb-4 text-xs font-bold">
+                                <Clock className="w-4 h-4" />
+                                <span>EVENT TIMELINE</span>
                               </div>
-                              <div className="border border-white/5 bg-white/5 p-3 rounded-lg">
-                                <span className="text-[9px] font-mono text-zinc-500 block uppercase">
-                                  RAG Similarity
-                                </span>
-                                <span className="text-xl font-bold text-violet-400">
-                                  88%
-                                </span>
-                              </div>
-                              <div className="border border-white/5 bg-white/5 p-3 rounded-lg">
-                                <span className="text-[9px] font-mono text-zinc-500 block uppercase">
-                                  Sandbox Verdict
-                                </span>
-                                <span className="text-xl font-bold text-emerald-400">
-                                  PASSED
-                                </span>
-                              </div>
-                              <div className="border border-white/5 bg-white/5 p-3 rounded-lg">
-                                <span className="text-[9px] font-mono text-zinc-500 block uppercase">
-                                  Severity
-                                </span>
-                                <span className="text-xl font-bold text-red-400 uppercase">
-                                  {selectedIncident.severity}
-                                </span>
+                              <div className="relative border-l border-black ml-3 pl-6 py-2 flex flex-col gap-6">
+                                <div className="relative">
+                                  <div className="absolute -left-[30px] top-1.5 w-2.5 h-2.5 bg-black rounded-full"></div>
+                                  <span className="text-[9px] font-mono text-[#7e7576]">
+                                    {selectedIncident
+                                      ? new Date(
+                                          selectedIncident.created_at
+                                        ).toLocaleTimeString()
+                                      : "14:22:01"}
+                                  </span>
+                                  <h4 className="text-xs font-bold mt-1">
+                                    Alert: Pipeline Failure
+                                  </h4>
+                                </div>
+                                {executions && executions.length > 0 ? (
+                                  executions.map((exec, idx) => (
+                                    <div
+                                      key={exec.id || idx}
+                                      className="relative"
+                                    >
+                                      <div className="absolute -left-[30px] top-1.5 w-2.5 h-2.5 bg-black rounded-full"></div>
+                                      <span className="text-[9px] font-mono text-[#7e7576]">
+                                        {new Date(
+                                          exec.created_at
+                                        ).toLocaleTimeString()}
+                                      </span>
+                                      <h4 className="text-xs font-bold mt-1">
+                                        {exec.agent_name
+                                          .replace("_", " ")
+                                          .toUpperCase()}
+                                        : {exec.status.toUpperCase()}
+                                      </h4>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="relative">
+                                    <div className="absolute -left-[30px] top-1.5 w-2.5 h-2.5 bg-[#7e7576] rounded-full"></div>
+                                    <span className="text-[9px] font-mono text-[#7e7576]">
+                                      Pending
+                                    </span>
+                                    <h4 className="text-xs font-bold mt-1">
+                                      Agent Orchestration Pending...
+                                    </h4>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
-                            <div className="flex flex-col gap-4">
-                              <h3 className="text-xs font-bold text-white tracking-wider uppercase">
-                                Root Cause Analysis
-                              </h3>
-                              <div className="bg-zinc-950 border border-white/10 p-4 rounded-xl font-mono text-xs leading-relaxed text-zinc-300">
-                                <span className="text-zinc-500 block mb-1">
-                                  ANALYSIS PATHWAY:
+                            {/* Proposed remediation steps / issue preview */}
+                            <div className="border border-black bg-white p-4 flex flex-col justify-between">
+                              <div className="flex justify-between items-center mb-4">
+                                <span className="text-xs font-bold">
+                                  PROPOSED REMEDIATION ACTIONS
                                 </span>
-                                {analysis?.root_cause ||
-                                  "Analyzing cluster logs and identifying active PostgreSQL exception pools..."}
                               </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                              <div className="border border-white/10 p-4 rounded-xl">
-                                <h3 className="text-xs font-bold text-white tracking-wider uppercase mb-3">
-                                  Remediation Steps
-                                </h3>
-                                <div className="flex flex-col gap-2 text-xs text-zinc-400">
+                              <div className="border border-[#efeded] p-3 text-xs leading-relaxed">
+                                <h4 className="font-bold mb-2">Fix Strategy</h4>
+                                <div className="flex flex-col gap-2 text-[11px] text-[#4c4546]">
                                   {analysis?.remediation?.actions ? (
                                     analysis.remediation.actions.map(
-                                      (act: string, idx: number) => (
+                                      (act: string, i: number) => (
                                         <div
-                                          key={idx}
+                                          key={i}
                                           className="flex gap-2 items-start"
                                         >
-                                          <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                                          <span className="font-mono text-black font-bold">
+                                            •
+                                          </span>
                                           <span>{act}</span>
                                         </div>
                                       )
                                     )
                                   ) : (
-                                    <span>
-                                      No actions suggested. Click run graph.
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="border border-white/10 p-4 rounded-xl">
-                                <h3 className="text-xs font-bold text-white tracking-wider uppercase mb-3">
-                                  RAG Incidents
-                                </h3>
-                                <div className="flex flex-col gap-2 text-xs text-zinc-400">
-                                  {analysis?.similar_incidents?.length > 0 ? (
-                                    analysis.similar_incidents.map(
-                                      (sim: any, idx: number) => (
-                                        <div
-                                          key={idx}
-                                          className="flex justify-between items-center border-b border-white/5 pb-2"
-                                        >
-                                          <span>{sim.title}</span>
-                                          <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono font-bold">
-                                            {Math.round(sim.score * 100)}% Match
-                                          </span>
-                                        </div>
-                                      )
-                                    )
-                                  ) : (
-                                    <span>
-                                      No matches in incident database.
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="border-t border-white/10 pt-4">
-                              <h3 className="text-xs font-bold text-white tracking-wider uppercase mb-3">
-                                Agent Execution Telemetry
-                              </h3>
-                              {loadingExecutions ? (
-                                <div className="h-10 bg-white/5 animate-pulse rounded-lg"></div>
-                              ) : executions.length > 0 ? (
-                                <div className="flex flex-col gap-2">
-                                  {executions.map((exec, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-lg text-xs"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <Activity className="w-4 h-4 text-violet-400" />
-                                        <span className="font-bold text-zinc-200 uppercase">
-                                          {exec.agent_name}
-                                        </span>
-                                      </div>
-                                      <span className="text-[10px] text-emerald-400 font-bold uppercase">
-                                        {exec.status}
+                                    <div className="flex gap-2 items-start">
+                                      <span className="font-mono text-black font-bold">
+                                        •
+                                      </span>
+                                      <span>
+                                        Run standard auto-remediation to fix
+                                        repository dependency problems.
                                       </span>
                                     </div>
-                                  ))}
+                                  )}
                                 </div>
-                              ) : (
-                                <span className="text-xs text-zinc-500">
-                                  No agent traces run for this incident yet.
-                                </span>
-                              )}
+                              </div>
                             </div>
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex-grow flex items-center justify-center border border-white/10 rounded-xl p-12 text-zinc-500">
-                        Select an incident from the left to view details
-                      </div>
+                          </div>
+                        </div>
+
+                        {/* Similar Past Incidents (RAG Matches) */}
+                        {analysis?.similar_incidents &&
+                          analysis.similar_incidents.length > 0 && (
+                            <div className="border border-black bg-white p-4">
+                              <div className="flex items-center gap-2 mb-4 text-xs font-bold">
+                                <Layers className="w-4 h-4" />
+                                <span>
+                                  SIMILAR PAST INCIDENTS (RAG MATCHES)
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {analysis.similar_incidents.map(
+                                  (sim: any, idx: number) => (
+                                    <div
+                                      key={idx}
+                                      className="border border-[#efeded] p-3 text-xs leading-relaxed bg-[#fbf9f9] hover:bg-[#efeded] transition-all"
+                                    >
+                                      <div className="flex justify-between items-start mb-2 border-b border-black/10 pb-1">
+                                        <h4 className="font-bold uppercase tracking-tight text-[11px]">
+                                          {sim.title || "Untitled Match"}
+                                        </h4>
+                                        <span className="text-[9px] font-mono border border-black px-1.5 py-0.5 bg-white">
+                                          Match: {Math.round(sim.score * 100)}%
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-col gap-1 text-[10px] text-[#4c4546]">
+                                        <p>
+                                          <strong>Category:</strong>{" "}
+                                          {sim.category}
+                                        </p>
+                                        <p>
+                                          <strong>Root Cause:</strong>{" "}
+                                          {sim.root_cause}
+                                        </p>
+                                        {sim.resolution && (
+                                          <p>
+                                            <strong>Resolution:</strong>{" "}
+                                            {sim.resolution}
+                                          </p>
+                                        )}
+                                        {sim.patch && (
+                                          <pre className="mt-2 bg-white p-2 text-[8px] font-mono overflow-x-auto border border-[#efeded]">
+                                            {sim.patch}
+                                          </pre>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                        {/* Bottom actions panel */}
+                        <div className="flex justify-end gap-3 border-t border-black pt-6 bg-white">
+                          <button
+                            onClick={() => alert("Alert dismissed")}
+                            className="border border-black text-xs font-mono py-2 px-6 hover:bg-black hover:text-white bg-white transition-all duration-100"
+                          >
+                            DISMISS ALERT
+                          </button>
+                          <button
+                            onClick={triggerRemediation}
+                            disabled={remediating || remediationDone}
+                            className="bg-black text-white text-xs font-mono py-2 px-6 border border-black hover:bg-white hover:text-black transition-all duration-100 disabled:opacity-50"
+                          >
+                            {remediating
+                              ? "EXECUTING..."
+                              : remediationDone
+                                ? "REMEDIATED SUCCESSFULLY"
+                                : "EXECUTE AUTO-REMEDIATION"}
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1238,83 +1430,283 @@ export default function Home() {
 
               {/* TAB: AGENT WORKFLOWS */}
               {activeTab === "Agent Workflows" && (
-                <div className="p-6 flex flex-col gap-6">
-                  <div>
-                    <h2 className="text-lg font-black text-white uppercase">
-                      LangGraph Multi-Agent Workflows
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-1">
-                      Orchestration status of specialized remediation agents
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    {[
-                      {
-                        name: "Classifier Agent",
-                        desc: "Categorizes pipeline logs",
-                        step: 1,
-                      },
-                      {
-                        name: "Root Cause Agent",
-                        desc: "Pinpoints source location",
-                        step: 2,
-                      },
-                      {
-                        name: "Retriever Agent",
-                        desc: "Queries RAG database",
-                        step: 3,
-                      },
-                      {
-                        name: "Fix Generator Agent",
-                        desc: "Formulates proposal code",
-                        step: 4,
-                      },
-                      {
-                        name: "Reporter Agent",
-                        desc: "Compiles markdown guide",
-                        step: 5,
-                      },
-                    ].map((ag, idx) => (
-                      <div
-                        key={idx}
-                        className={`p-4 rounded-xl border transition-all ${
-                          workflowSteps >= ag.step
-                            ? "border-violet-500 bg-violet-500/10 text-white shadow-lg"
-                            : "border-white/10 bg-zinc-950/40 text-zinc-400"
-                        }`}
-                      >
-                        <span className="text-[9px] font-mono uppercase tracking-wider block text-zinc-500">
-                          Step 0{ag.step}
+                <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_320px] border-t border-black">
+                  {/* Flowchart canvas workspace */}
+                  <div className="p-6 flex flex-col gap-6 relative bg-white">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-[10px] text-[#4c4546] font-mono tracking-widest uppercase">
+                          ACTIVE FLOWCHART
                         </span>
-                        <h3 className="font-bold text-sm mt-1">{ag.name}</h3>
-                        <p className="text-xs text-zinc-500 mt-1">{ag.desc}</p>
+                        <h2 className="text-xl font-bold tracking-tight uppercase">
+                          Agent Orchestration Graph
+                        </h2>
                       </div>
-                    ))}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (!selectedIncidentId) return;
+                            setWorkflowStatus("running");
+                            const API_BASE_URL =
+                              process.env.NEXT_PUBLIC_API_BASE_URL ??
+                              "http://localhost:8000";
+                            fetch(
+                              `${API_BASE_URL}/api/v1/incidents/${selectedIncidentId}/analyze`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({}),
+                              }
+                            )
+                              .then((res) => {
+                                if (!res.ok)
+                                  throw new Error("Failed to analyze");
+                                return res.json();
+                              })
+                              .then((data) => {
+                                setAnalysis(data);
+                                fetchExecutions(selectedIncidentId);
+                                setWorkflowStatus("completed");
+                              })
+                              .catch((err) => {
+                                console.error(err);
+                                setWorkflowStatus("idle");
+                              });
+                          }}
+                          disabled={workflowStatus === "running"}
+                          className="border border-black bg-white text-xs font-mono p-1.5 flex items-center gap-1 hover:bg-black hover:text-white disabled:opacity-50"
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                          {workflowStatus === "running"
+                            ? "Running..."
+                            : "Run Graph"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setWorkflowStatus("idle");
+                            setExecutions([]);
+                          }}
+                          className="border border-black bg-white text-xs font-mono p-1.5 flex items-center gap-1 hover:bg-black hover:text-white"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" /> Reset
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SVG Graph Canvas */}
+                    <div className="flex-1 border border-black bg-[#fbf9f9] min-h-[400px] relative flex items-center justify-center p-6 select-none">
+                      {/* Dot Grid Background */}
+                      <div
+                        className="absolute inset-0 opacity-20 pointer-events-none"
+                        style={{
+                          backgroundImage:
+                            "radial-gradient(#000000 1px, transparent 0)",
+                          backgroundSize: "20px 20px",
+                        }}
+                      ></div>
+
+                      {/* SVG Nodes Layout */}
+                      <div className="flex flex-wrap items-center justify-center gap-6 relative z-10 w-full max-w-4xl">
+                        {/* Trigger Node */}
+                        <div className="border border-black bg-white p-4 w-40 shadow-sm flex flex-col transition-all">
+                          <span className="text-[8px] font-mono uppercase text-[#7e7576] mb-1">
+                            Trigger
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-[#ba1a1a]" />
+                            <h4 className="text-xs font-bold uppercase">
+                              Build Failure
+                            </h4>
+                          </div>
+                          <span className="text-[9px] font-mono text-[#7e7576] mt-2">
+                            {selectedIncident?.repository || "payment-gateway"}
+                          </span>
+                        </div>
+
+                        <div className="w-4 h-[1px] bg-black hidden xl:block"></div>
+
+                        {/* Classifier Agent */}
+                        <div
+                          className={`border p-4 w-40 flex flex-col transition-all duration-300 ${
+                            hasClassifier
+                              ? "border-black bg-black text-white"
+                              : "border-[#cfc4c5] bg-white text-[#7e7576]"
+                          }`}
+                        >
+                          <span className="text-[8px] font-mono uppercase mb-1">
+                            Agent Node
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4" />
+                            <h4 className="text-xs font-bold uppercase">
+                              Classifier Agent
+                            </h4>
+                          </div>
+                          <span className="text-[8px] font-mono mt-2">
+                            {hasClassifier ? "SUCCESS" : "PENDING"}
+                          </span>
+                        </div>
+
+                        <div className="w-4 h-[1px] bg-black hidden xl:block"></div>
+
+                        {/* Root Cause Agent */}
+                        <div
+                          className={`border p-4 w-40 flex flex-col transition-all duration-300 ${
+                            hasRootCause
+                              ? "border-black bg-black text-white"
+                              : "border-[#cfc4c5] bg-white text-[#7e7576]"
+                          }`}
+                        >
+                          <span className="text-[8px] font-mono uppercase mb-1">
+                            Agent Node
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Search className="w-4 h-4" />
+                            <h4 className="text-xs font-bold uppercase">
+                              Root Cause Agent
+                            </h4>
+                          </div>
+                          <span className="text-[8px] font-mono mt-2">
+                            {hasRootCause ? "SUCCESS" : "PENDING"}
+                          </span>
+                        </div>
+
+                        <div className="w-4 h-[1px] bg-black hidden xl:block"></div>
+
+                        {/* Retriever Agent */}
+                        <div
+                          className={`border p-4 w-40 flex flex-col transition-all duration-300 ${
+                            hasRetriever
+                              ? "border-black bg-black text-white"
+                              : "border-[#cfc4c5] bg-white text-[#7e7576]"
+                          }`}
+                        >
+                          <span className="text-[8px] font-mono uppercase mb-1">
+                            Agent Node
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Layers className="w-4 h-4" />
+                            <h4 className="text-xs font-bold uppercase">
+                              Retriever Agent
+                            </h4>
+                          </div>
+                          <span className="text-[8px] font-mono mt-2">
+                            {hasRetriever ? "SUCCESS" : "PENDING"}
+                          </span>
+                        </div>
+
+                        <div className="w-4 h-[1px] bg-black hidden xl:block"></div>
+
+                        {/* Fix Generator Agent */}
+                        <div
+                          className={`border p-4 w-40 flex flex-col transition-all duration-300 ${
+                            hasFixGenerator
+                              ? "border-black bg-black text-white"
+                              : "border-[#cfc4c5] bg-white text-[#7e7576]"
+                          }`}
+                        >
+                          <span className="text-[8px] font-mono uppercase mb-1">
+                            Agent Node
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4" />
+                            <h4 className="text-xs font-bold uppercase">
+                              Fix Generator
+                            </h4>
+                          </div>
+                          <span className="text-[8px] font-mono mt-2">
+                            {hasFixGenerator ? "SUCCESS" : "PENDING"}
+                          </span>
+                        </div>
+
+                        <div className="w-4 h-[1px] bg-black hidden xl:block"></div>
+
+                        {/* Reporter Agent */}
+                        <div
+                          className={`border p-4 w-40 flex flex-col transition-all duration-300 ${
+                            hasReporter
+                              ? "border-black bg-black text-white"
+                              : "border-[#cfc4c5] bg-white text-[#7e7576]"
+                          }`}
+                        >
+                          <span className="text-[8px] font-mono uppercase mb-1">
+                            Agent Node
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4" />
+                            <h4 className="text-xs font-bold uppercase">
+                              Reporter Agent
+                            </h4>
+                          </div>
+                          <span className="text-[8px] font-mono mt-2">
+                            {hasReporter ? "COMPLETED" : "PENDING"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="border border-white/10 bg-zinc-950/40 p-6 rounded-xl text-center flex flex-col items-center justify-center gap-4 py-12">
-                    <span className="text-xs font-mono text-zinc-400">
-                      Simulation controls
-                    </span>
-                    <div className="flex gap-3">
+                  {/* Sidebar reasoning summary */}
+                  <div className="border-l border-black bg-white p-6 flex flex-col gap-6 overflow-y-auto max-h-[calc(100vh-140px)]">
+                    <h3 className="text-xs font-bold tracking-widest uppercase border-b border-black pb-3">
+                      AGENT AUDIT LOGS
+                    </h3>
+
+                    <div className="flex flex-col gap-4">
+                      {executions.length === 0 ? (
+                        <p className="text-xs text-[#7e7576] italic font-mono">
+                          No executions recorded. Run the graph to analyze the
+                          incident.
+                        </p>
+                      ) : (
+                        executions.map((exec, idx) => (
+                          <div
+                            key={exec.id}
+                            className="border border-black bg-[#fbf9f9] p-4 flex flex-col gap-2 transition-all"
+                          >
+                            <div className="flex justify-between items-center border-b border-[#cfc4c5] pb-2">
+                              <span className="text-[10px] font-mono font-bold uppercase tracking-tight text-black">
+                                [{idx + 1}] {exec.agent_name.replace("_", " ")}
+                              </span>
+                              <span className="text-[9px] font-mono text-[#7e7576]">
+                                {new Date(exec.created_at).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <p className="text-[10px] font-mono">
+                              <strong>STATUS:</strong>{" "}
+                              <span className="font-bold uppercase">
+                                {exec.status}
+                              </span>
+                            </p>
+                            <details className="mt-1">
+                              <summary className="text-[9px] font-mono text-[#7e7576] cursor-pointer hover:text-black">
+                                VIEW LOG PAYLOAD
+                              </summary>
+                              <pre className="mt-2 bg-white border border-[#efeded] p-2 text-[8px] font-mono overflow-x-auto max-h-48">
+                                {JSON.stringify(exec.output_payload, null, 2)}
+                              </pre>
+                            </details>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="border border-black bg-[#fbf9f9] p-4 flex flex-col justify-between mt-auto">
+                      <span className="text-[9px] font-mono text-[#7e7576] block mb-2 uppercase">
+                        RECOMMENDED ACTION
+                      </span>
+                      <p className="text-xs leading-relaxed mb-4">
+                        {analysis?.remediation?.actions?.[0] ||
+                          "Rollback service or apply auto-remediation patches."}
+                      </p>
                       <button
                         onClick={() => {
-                          setWorkflowStatus("running");
-                          setWorkflowSteps(0);
-                        }}
-                        className="bg-white hover:bg-zinc-200 text-black text-xs font-bold px-6 py-2.5 rounded-lg transition"
-                      >
-                        Run Orchestrator Graph
-                      </button>
-                      <button
-                        onClick={() => {
+                          alert("Remediation execution approved.");
                           setWorkflowStatus("idle");
-                          setWorkflowSteps(0);
                         }}
-                        className="border border-white/10 bg-white/5 text-zinc-300 text-xs font-mono px-6 py-2.5 rounded-lg hover:bg-white/10"
+                        className="w-full bg-black text-white font-mono text-xs py-2 border border-black hover:bg-white hover:text-black transition-all"
                       >
-                        Reset Graph
+                        APPROVE
                       </button>
                     </div>
                   </div>
@@ -1324,109 +1716,327 @@ export default function Home() {
               {/* TAB: FLEET CONTROL */}
               {activeTab === "Fleet Control" && (
                 <div className="p-6 flex flex-col gap-6">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h2 className="text-lg font-black text-white uppercase">
-                        Repository Fleet Control
-                      </h2>
-                      <p className="text-xs text-zinc-400 mt-1">
-                        Manage organizations, teams, and linked repositories
-                      </p>
+                  <div>
+                    <p className="text-[10px] text-[#4c4546] font-mono tracking-widest uppercase">
+                      SaaS Fleet Telemetry
+                    </p>
+                    <h2 className="text-xl font-bold tracking-tight uppercase">
+                      Repository Fleet Control
+                    </h2>
+                  </div>
+
+                  {/* Analytics Summary */}
+                  {fleetReport && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 border border-black divide-y md:divide-y-0 md:divide-x divide-black bg-white">
+                      <div className="p-4 flex flex-col gap-1">
+                        <span className="text-[8px] font-mono text-[#7e7576] uppercase">
+                          Total Fleet Repositories
+                        </span>
+                        <span className="text-2xl font-bold font-mono">
+                          {fleetReport.total_repositories}
+                        </span>
+                      </div>
+                      <div className="p-4 flex flex-col gap-1">
+                        <span className="text-[8px] font-mono text-[#7e7576] uppercase">
+                          Degraded / Failures
+                        </span>
+                        <span className="text-2xl font-bold font-mono text-[#ba1a1a]">
+                          {fleetReport.active_incidents}
+                        </span>
+                      </div>
+                      <div className="p-4 flex flex-col gap-1">
+                        <span className="text-[8px] font-mono text-[#7e7576] uppercase">
+                          Fleet Mean Recovery Time
+                        </span>
+                        <span className="text-2xl font-bold font-mono">
+                          {fleetReport.mttr_seconds}s
+                        </span>
+                      </div>
+                      <div className="p-4 flex flex-col gap-1">
+                        <span className="text-[8px] font-mono text-[#7e7576] uppercase">
+                          Healthy Fleet Projects
+                        </span>
+                        <span className="text-2xl font-bold font-mono">
+                          {fleetReport.healthy_projects}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setShowCreateTeamModal(true)}
-                        className="bg-white text-black hover:bg-zinc-200 text-xs font-bold px-4 py-2 rounded-lg transition flex items-center gap-1"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>Add Team</span>
-                      </button>
+                  )}
+
+                  {/* Control Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowCreateTeamModal(true)}
+                      className="border border-black text-xs font-mono px-4 py-2 hover:bg-black hover:text-white transition-all bg-white"
+                    >
+                      Create Team
+                    </button>
+                    <button
+                      onClick={() => setShowCreateProjectModal(true)}
+                      className="border border-black text-xs font-mono px-4 py-2 hover:bg-black hover:text-white transition-all bg-white"
+                    >
+                      Create Project
+                    </button>
+                    <button
+                      onClick={() => setShowLinkRepoModal(true)}
+                      className="border border-black text-xs font-mono px-4 py-2 hover:bg-black hover:text-white transition-all bg-white"
+                    >
+                      Link Repository
+                    </button>
+                  </div>
+
+                  {/* Repositories & Projects Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+                    {/* Repository Fleet List */}
+                    <div className="border border-black bg-white flex flex-col">
+                      <div className="border-b border-black p-4 bg-[#fbf9f9]">
+                        <h3 className="text-xs font-bold uppercase font-mono">
+                          Fleet Repositories
+                        </h3>
+                      </div>
+                      <div className="divide-y divide-black overflow-auto max-h-[400px]">
+                        {fleetReport?.repositories.map((repo) => (
+                          <div
+                            key={repo.id}
+                            className="p-4 flex items-center justify-between hover:bg-[#f5f3f3] transition-all"
+                          >
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold font-mono">
+                                  {repo.name}
+                                </span>
+                                {repo.healthy ? (
+                                  <span className="text-[8px] bg-black text-white px-1.5 py-0.5 uppercase tracking-widest font-mono">
+                                    Healthy
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] bg-[#ba1a1a] text-white px-1.5 py-0.5 uppercase tracking-widest font-mono">
+                                    Degraded
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex gap-2 text-[10px] text-[#7e7576] font-mono">
+                                <span>
+                                  Project: {repo.project_name || "None"}
+                                </span>
+                                <span>•</span>
+                                <span>Team: {repo.team_name || "None"}</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 text-right font-mono text-xs">
+                              <span>Incidents: {repo.incident_count}</span>
+                              <span className="text-[10px] text-[#7e7576]">
+                                MTTR: {repo.mttr_seconds}s
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Projects Health */}
+                    <div className="border border-black bg-white flex flex-col">
+                      <div className="border-b border-black p-4 bg-[#fbf9f9]">
+                        <h3 className="text-xs font-bold uppercase font-mono">
+                          Project Health Index
+                        </h3>
+                      </div>
+                      <div className="divide-y divide-black overflow-auto max-h-[400px] p-4 flex flex-col gap-4">
+                        {fleetReport?.projects.map((proj) => (
+                          <div key={proj.id} className="flex flex-col gap-2">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="font-bold">{proj.name}</span>
+                              <span className="font-mono">
+                                Score: {proj.health_score}/100
+                              </span>
+                            </div>
+                            <div className="w-full h-1 bg-[#efeded]">
+                              <div
+                                className="h-full bg-black"
+                                style={{ width: `${proj.health_score}%` }}
+                              ></div>
+                            </div>
+                            <div className="flex justify-between text-[9px] text-[#7e7576] font-mono">
+                              <span>Fail Rate: {proj.failure_rate * 100}%</span>
+                              <span>Incidents: {proj.incident_count}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  {loadingFleet ? (
-                    <div className="h-48 bg-white/5 animate-pulse rounded-xl"></div>
-                  ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div className="border border-white/10 bg-zinc-950/40 p-4 rounded-xl">
-                        <h3 className="text-xs font-bold text-white tracking-wider uppercase mb-4 flex items-center gap-1">
-                          <FolderOpen className="w-4 h-4 text-violet-400" />
-                          <span>Linked Codebases</span>
+                  {/* Create Team Modal */}
+                  {showCreateTeamModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                      <div className="bg-white border border-black p-6 w-full max-w-sm flex flex-col gap-4">
+                        <h3 className="text-xs font-bold uppercase font-mono">
+                          Create SaaS Team
                         </h3>
-                        <div className="flex flex-col gap-2.5">
-                          {fleetReport?.repositories?.map((repo) => (
-                            <div
-                              key={repo.id}
-                              className="border border-white/5 bg-white/5 p-3 rounded-lg flex items-center justify-between text-xs"
+                        <form
+                          onSubmit={handleCreateTeam}
+                          className="flex flex-col gap-4"
+                        >
+                          <input
+                            type="text"
+                            placeholder="Team Name"
+                            value={newTeamName}
+                            onChange={(e) => setNewTeamName(e.target.value)}
+                            className="border border-black text-xs font-mono p-2 w-full outline-none"
+                          />
+                          <div className="flex justify-end gap-2 text-xs font-mono">
+                            <button
+                              type="button"
+                              onClick={() => setShowCreateTeamModal(false)}
+                              className="border border-black px-3 py-1 hover:bg-[#f5f3f3]"
                             >
-                              <div>
-                                <h4 className="font-bold text-white">
-                                  {repo.name}
-                                </h4>
-                                <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                                  {repo.project_name || "No Project"} &bull;{" "}
-                                  {repo.team_name || "No Team"}
-                                </p>
-                              </div>
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${repo.healthy ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}
-                              >
-                                {repo.healthy ? "HEALTHY" : "DEGRADED"}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="bg-black text-white px-3 py-1 border border-black hover:bg-white hover:text-black"
+                            >
+                              Create
+                            </button>
+                          </div>
+                        </form>
                       </div>
+                    </div>
+                  )}
 
-                      <div className="border border-white/10 bg-zinc-950/40 p-4 rounded-xl">
-                        <h3 className="text-xs font-bold text-white tracking-wider uppercase mb-4 flex items-center gap-1">
-                          <Activity className="w-4 h-4 text-fuchsia-400" />
-                          <span>Projects constraint Index</span>
+                  {/* Create Project Modal */}
+                  {showCreateProjectModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                      <div className="bg-white border border-black p-6 w-full max-w-sm flex flex-col gap-4">
+                        <h3 className="text-xs font-bold uppercase font-mono">
+                          Create Project Group
                         </h3>
-                        <div className="flex flex-col gap-2.5">
-                          {fleetReport?.projects?.map((proj) => (
-                            <div
-                              key={proj.id}
-                              className="border border-white/5 bg-white/5 p-3 rounded-lg flex items-center justify-between text-xs"
+                        <form
+                          onSubmit={handleCreateProject}
+                          className="flex flex-col gap-4"
+                        >
+                          <input
+                            type="text"
+                            placeholder="Project Name"
+                            value={newProjectName}
+                            onChange={(e) => setNewProjectName(e.target.value)}
+                            className="border border-black text-xs font-mono p-2 w-full outline-none"
+                            required
+                          />
+                          <textarea
+                            placeholder="Description"
+                            value={newProjectDesc}
+                            onChange={(e) => setNewProjectDesc(e.target.value)}
+                            className="border border-black text-xs font-mono p-2 w-full outline-none h-20"
+                          />
+                          <select
+                            value={selectedTeamId}
+                            onChange={(e) => setSelectedTeamId(e.target.value)}
+                            className="border border-black text-xs font-mono p-2 w-full outline-none"
+                          >
+                            <option value="">Assign to Team (Optional)</option>
+                            {teams.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="flex justify-end gap-2 text-xs font-mono">
+                            <button
+                              type="button"
+                              onClick={() => setShowCreateProjectModal(false)}
+                              className="border border-black px-3 py-1 hover:bg-[#f5f3f3]"
                             >
-                              <div>
-                                <h4 className="font-bold text-white">
-                                  {proj.name}
-                                </h4>
-                                <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                                  Failure rate:{" "}
-                                  {Math.round(proj.failure_rate * 100)}% &bull;
-                                  Incidents: {proj.incident_count}
-                                </p>
-                              </div>
-                              <span className="font-bold text-violet-400 font-mono">
-                                {proj.health_score} index
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="bg-black text-white px-3 py-1 border border-black hover:bg-white hover:text-black"
+                            >
+                              Create
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Link Repository Modal */}
+                  {showLinkRepoModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                      <div className="bg-white border border-black p-6 w-full max-w-sm flex flex-col gap-4">
+                        <h3 className="text-xs font-bold uppercase font-mono">
+                          Link Repository to Project
+                        </h3>
+                        <form
+                          onSubmit={handleLinkRepo}
+                          className="flex flex-col gap-4"
+                        >
+                          <select
+                            value={selectedRepoId}
+                            onChange={(e) => setSelectedRepoId(e.target.value)}
+                            className="border border-black text-xs font-mono p-2 w-full outline-none"
+                            required
+                          >
+                            <option value="">Select Repository</option>
+                            {fleetReport?.repositories.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.name}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={selectedProjectId}
+                            onChange={(e) =>
+                              setSelectedProjectId(e.target.value)
+                            }
+                            className="border border-black text-xs font-mono p-2 w-full outline-none"
+                            required
+                          >
+                            <option value="">Select Project</option>
+                            {projects.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="flex justify-end gap-2 text-xs font-mono">
+                            <button
+                              type="button"
+                              onClick={() => setShowLinkRepoModal(false)}
+                              className="border border-black px-3 py-1 hover:bg-[#f5f3f3]"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="bg-black text-white px-3 py-1 border border-black hover:bg-white hover:text-black"
+                            >
+                              Link
+                            </button>
+                          </div>
+                        </form>
                       </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* TAB: OTHER TABS DEFAULT FALLBACK */}
+              {/* TAB: OTHER FALLBACKS */}
               {activeTab !== "Dashboard" &&
                 activeTab !== "Incidents" &&
                 activeTab !== "Agent Workflows" &&
                 activeTab !== "Fleet Control" && (
-                  <div className="p-12 text-center text-zinc-500 flex flex-col items-center justify-center gap-4 py-36">
-                    <FolderOpen className="w-8 h-8 text-zinc-600" />
-                    <div>
-                      <h3 className="text-sm font-bold text-white uppercase">
-                        {activeTab} tab
-                      </h3>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        This module is currently operational and monitoring
-                        cluster metrics.
-                      </p>
-                    </div>
+                  <div className="p-8 flex flex-col items-center justify-center text-center gap-4 flex-1">
+                    <AlertTriangle className="w-8 h-8 text-black" />
+                    <h3 className="text-sm font-bold uppercase">
+                      {activeTab} Workspace
+                    </h3>
+                    <p className="text-xs text-[#7e7576] max-w-sm">
+                      This workflow space is simulated and integrated with
+                      active DevOps pipelines. Run log analysis or visit the
+                      Dashboard/Incidents for real-time controls.
+                    </p>
                   </div>
                 )}
             </>
@@ -1434,44 +2044,43 @@ export default function Home() {
         </main>
       </div>
 
-      {/* CREATE TEAM MODAL */}
-      {showCreateTeamModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-white/10 p-6 rounded-2xl w-full max-w-sm flex flex-col gap-4 animate-scale-up">
-            <h3 className="text-base font-bold text-white">Create New Team</h3>
-            <input
-              type="text"
-              placeholder="Team name (e.g. Frontend Core)"
-              value={newTeamName}
-              onChange={(e) => setNewTeamName(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-violet-500/50 text-white"
-            />
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setShowCreateTeamModal(false)}
-                className="border border-white/10 bg-white/5 text-zinc-400 text-xs px-4 py-2 rounded-lg hover:bg-white/10"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (!newTeamName.trim()) return;
-                  setTeams([
-                    ...teams,
-                    { id: `team-${Date.now()}`, name: newTeamName },
-                  ]);
-                  setNewTeamName("");
-                  setShowCreateTeamModal(false);
-                  alert("Team created successfully!");
-                }}
-                className="bg-white text-black hover:bg-zinc-200 text-xs font-bold px-4 py-2 rounded-lg"
-              >
-                Create
-              </button>
-            </div>
-          </div>
+      {/* Bottom Status Bar */}
+      <footer className="bg-white border-t border-black p-4 grid grid-cols-2 md:grid-cols-5 text-center items-center divide-x divide-black text-[11px] font-mono">
+        <div className="flex flex-col gap-0.5 justify-center py-1">
+          <span className="text-[8px] text-[#7e7576] uppercase">
+            THROUGHPUT
+          </span>
+          <span className="font-bold">12.4 req/s</span>
         </div>
-      )}
+        <div className="flex flex-col gap-0.5 justify-center py-1">
+          <span className="text-[8px] text-[#7e7576] uppercase">
+            SUCCESS RATE
+          </span>
+          <span className="font-bold text-[#ba1a1a] flex items-center justify-center gap-1">
+            99.8% <span className="text-[9px]">↗</span>
+          </span>
+        </div>
+        <div className="flex flex-col gap-0.5 justify-center py-1">
+          <span className="text-[8px] text-[#7e7576] uppercase">
+            AI CONFIDENCE
+          </span>
+          <span className="font-bold">88.2% AVG</span>
+        </div>
+        <div className="flex flex-col gap-0.5 justify-center py-1">
+          <span className="text-[8px] text-[#7e7576] uppercase">
+            SYSTEM HEALTH
+          </span>
+          <span className="font-bold">STABLE</span>
+        </div>
+        <div className="flex justify-center items-center py-1 col-span-2 md:col-span-1">
+          <button
+            onClick={() => alert("Exposing agent debug logs...")}
+            className="border border-black bg-white py-1.5 px-4 text-[9px] hover:bg-black hover:text-white transition-all"
+          >
+            VIEW LOGS
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }
