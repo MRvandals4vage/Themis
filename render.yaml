@@ -1,0 +1,51 @@
+services:
+  # 1. FastAPI Backend Service
+  - type: web
+    name: themis-api
+    env: docker
+    dockerfilePath: infrastructure/docker/api.Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: themis-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: themis-redis
+          property: connectionString
+      - key: QDRANT_URL
+        value: http://qdrant:6333  # Or configure Qdrant Cloud URL
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: GITHUB_WEBHOOK_SECRET
+        generateValue: true
+
+  # 2. Next.js Frontend Console
+  - type: web
+    name: themis-console
+    env: docker
+    dockerfilePath: infrastructure/docker/web.Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_BASE_URL
+        fromService:
+          type: web
+          name: themis-api
+          property: url
+
+  # 3. Redis Instance
+  - type: redis
+    name: themis-redis
+    plan: free
+    ipAllowList: [] # Only allow internal connections from other services
+
+databases:
+  # 4. PostgreSQL Database
+  - name: themis-postgres
+    databaseName: themis
+    user: themis
+    plan: free
