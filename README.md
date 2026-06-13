@@ -16,7 +16,7 @@
   4. _Fix Generator Agent_: Formulates precise diff proposals.
   5. _Reporter Agent_: Compiles structured confidence-scored markdown remediation summaries.
 - ** Sandbox Patch Validation**: Before opening repository pull requests, the system sets up isolated sandboxed execution areas to run target syntax linting (`ruff`) and verify scripts (`pytest`) to prevent regressions.
-- **⚡ Self-Healing Workflows**: When a webhook notifies Themis of a build failure, the background workflow automates the cycle: Analyze log $\rightarrow$ Retrieve fix $\rightarrow$ Sandbox test patch $\rightarrow$ Create branch and open GitHub pull request $\rightarrow$ Simulate recovery.
+- ** Self-Healing Workflows**: When a webhook notifies Themis of a build failure, the background workflow automates the cycle: Analyze log $\rightarrow$ Retrieve fix $\rightarrow$ Sandbox test patch $\rightarrow$ Create branch and open GitHub pull request $\rightarrow$ Simulate recovery.
 - ** Multi-Tenant Organizations**: Real enterprise SaaS topology featuring structured Organizations, Teams, Projects, and Roles.
 - ** Repository Fleet Management**: Organization-level control plane managing hundreds of codebases with cross-repository telemetry, aggregated failure risk distributions, and MTTR analytics.
 
