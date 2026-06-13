@@ -7,7 +7,7 @@ from uuid import uuid4
 sys.path.append("apps/api")
 
 from sqlalchemy import select
-from app.db.session import AsyncSessionLocal, engine
+from app.db.session import AsyncSessionLocal
 from app.models import (
     Organization, User, Team, Project, Repository,
     Pipeline, PipelineRun, Incident, IncidentAnalysis, AgentExecution
