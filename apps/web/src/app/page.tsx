@@ -174,7 +174,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white text-[#1b1c1c] relative overflow-hidden flex flex-col font-sans selection:bg-black selection:text-white">
       {/* Dynamic Boxes Background */}
       <div className="absolute inset-0 overflow-hidden">
-        <Boxes className="opacity-30" />
+        <Boxes className="opacity-100" />
       </div>
 
       {/* Top Header */}
