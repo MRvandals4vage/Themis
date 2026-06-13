@@ -111,37 +111,35 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden flex flex-col font-sans selection:bg-violet-500/30 selection:text-white">
-      {/* Decorative Grid and Ambient Lights */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:4rem_4rem]"></div>
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-fuchsia-600/10 blur-[120px] pointer-events-none"></div>
+    <div className="min-h-screen bg-[#fbf9f9] text-[#1b1c1c] relative overflow-hidden flex flex-col font-sans selection:bg-black selection:text-white">
+      {/* Grid Pattern */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000005_1px,transparent_1px),linear-gradient(to_bottom,#00000005_1px,transparent_1px)] bg-[size:3rem_3rem] pointer-events-none"></div>
 
       {/* Top Header */}
-      <header className="relative z-10 border-b border-white/10 backdrop-blur-md bg-black/30 flex items-center justify-between px-8 py-4">
+      <header className="relative z-10 border-b border-black bg-white flex items-center justify-between px-8 py-4">
         <div className="flex items-center gap-3">
-          <ShieldCheck className="text-white w-7 h-7 filter drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
+          <ShieldCheck className="text-black w-6 h-6" />
           <div>
-            <h1 className="text-base font-extrabold tracking-wider uppercase">
+            <h1 className="text-sm font-bold tracking-wider uppercase">
               Themis
             </h1>
-            <p className="text-[9px] text-zinc-400 font-mono tracking-widest uppercase">
+            <p className="text-[10px] text-[#4c4546] font-mono tracking-widest uppercase">
               AI OPERATIONS
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-6 text-sm font-mono">
+        <div className="flex items-center gap-6 text-xs font-mono">
           <a
             href="https://github.com/MRvandals4vage/Themis"
             target="_blank"
             rel="noreferrer"
-            className="text-zinc-400 hover:text-white transition"
+            className="text-[#4c4546] hover:underline transition"
           >
             Docs
           </a>
           <button
             onClick={() => setStep(hasToken ? "integrate" : "login")}
-            className="border border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/40 text-xs px-4 py-2 rounded-lg transition"
+            className="border border-black bg-white hover:bg-black hover:text-white text-[10px] uppercase font-bold px-4 py-2 transition"
           >
             {hasToken ? "Configure VCS" : "Sign In"}
           </button>
@@ -149,34 +147,32 @@ export default function LandingPage() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex items-center justify-center relative z-10 px-6 py-12">
+      <main className="flex-1 flex items-center justify-center relative z-10 px-6 py-16">
         {step === "landing" && (
-          <div className="max-w-4xl text-center flex flex-col items-center gap-8 animate-fade-in">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-300 font-mono backdrop-blur-md">
-              <Sparkles className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
+          <div className="max-w-4xl text-center flex flex-col items-center gap-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-black text-[9px] font-mono uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5" />
               <span>DevOps Incident Remediation Engine</span>
             </div>
 
-            <h2 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-none">
+            <h2 className="text-4xl md:text-6xl font-bold tracking-tight uppercase leading-none">
               Autonomously Fix <br />
-              <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-indigo-400 bg-clip-text text-transparent">
-                CI/CD Failures
-              </span>
+              CI/CD Failures
             </h2>
 
-            <p className="text-base md:text-lg text-zinc-400 max-w-2xl leading-relaxed">
+            <p className="text-xs md:text-sm text-[#4c4546] max-w-2xl leading-relaxed font-mono">
               Detect logs, extract root causes with stateful LangGraph agents,
               retrieve fixes from your incident database, and test them in
               sandboxes before opening a PR.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 mt-4">
+            <div className="flex flex-col sm:flex-row gap-3 mt-4 font-mono text-xs">
               <button
                 onClick={() => setStep("login")}
-                className="bg-white text-black hover:bg-zinc-200 font-semibold px-8 py-4 rounded-xl transition flex items-center gap-2 group text-sm"
+                className="bg-black text-white hover:bg-white hover:text-black border border-black font-bold px-8 py-3.5 transition flex items-center gap-2 uppercase"
               >
                 <span>Access Console</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+                <ChevronRight className="w-4 h-4" />
               </button>
               <button
                 onClick={() =>
@@ -185,35 +181,41 @@ export default function LandingPage() {
                     "_blank"
                   )
                 }
-                className="border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 font-mono text-xs px-8 py-4 rounded-xl transition flex items-center gap-2"
+                className="border border-black bg-white hover:bg-black hover:text-white font-bold px-8 py-3.5 transition flex items-center gap-2 uppercase"
               >
-                <GitBranch className="w-4 h-4 text-violet-400" />
-                <span>Star on GitHub</span>
+                <GitBranch className="w-4 h-4" />
+                <span>GitHub Repository</span>
               </button>
             </div>
 
             {/* Feature Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 w-full text-left">
-              <div className="p-6 rounded-2xl border border-white/5 bg-white/5 backdrop-blur-md flex flex-col gap-3">
-                <Database className="w-6 h-6 text-violet-400" />
-                <h3 className="font-bold text-sm">Incident Memory Engine</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
+              <div className="p-6 bg-white border border-black flex flex-col gap-3">
+                <Database className="w-5 h-5 text-black" />
+                <h3 className="font-bold text-xs uppercase tracking-wider">
+                  Incident Memory (RAG)
+                </h3>
+                <p className="text-[11px] text-[#4c4546] leading-relaxed">
                   Semantic index of old patches via Qdrant allows instant
                   correlation of new errors to successful historical repairs.
                 </p>
               </div>
-              <div className="p-6 rounded-2xl border border-white/5 bg-white/5 backdrop-blur-md flex flex-col gap-3">
-                <GitBranch className="w-6 h-6 text-fuchsia-400" />
-                <h3 className="font-bold text-sm">LangGraph Orchestration</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
+              <div className="p-6 bg-white border border-black flex flex-col gap-3">
+                <GitBranch className="w-5 h-5 text-black" />
+                <h3 className="font-bold text-xs uppercase tracking-wider">
+                  LangGraph Workflows
+                </h3>
+                <p className="text-[11px] text-[#4c4546] leading-relaxed">
                   Multi-agent graphs run classifiers, log parses, fix
                   generators, and reporters to build confidence-scored repairs.
                 </p>
               </div>
-              <div className="p-6 rounded-2xl border border-white/5 bg-white/5 backdrop-blur-md flex flex-col gap-3">
-                <Lock className="w-6 h-6 text-indigo-400" />
-                <h3 className="font-bold text-sm">Sandboxed Validation</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
+              <div className="p-6 bg-white border border-black flex flex-col gap-3">
+                <Lock className="w-5 h-5 text-black" />
+                <h3 className="font-bold text-xs uppercase tracking-wider">
+                  Sandboxed Validation
+                </h3>
+                <p className="text-[11px] text-[#4c4546] leading-relaxed">
                   Runs lint checks and unit tests in safe, isolated execution
                   setups to avoid deploying broken code or syntax bugs.
                 </p>
@@ -223,47 +225,52 @@ export default function LandingPage() {
         )}
 
         {step === "login" && (
-          <div className="w-full max-w-md bg-zinc-950/80 border border-white/10 p-8 rounded-3xl backdrop-blur-xl shadow-2xl relative animate-scale-up">
-            <div className="flex flex-col gap-2 mb-8 text-center">
-              <div className="mx-auto w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-2">
-                <Lock className="w-5 h-5 text-violet-400" />
+          <div className="w-full max-w-sm bg-white border border-black p-8 shadow-[4px_4px_0px_#000000] relative">
+            <div className="flex flex-col gap-1.5 mb-8 text-center">
+              <div className="mx-auto w-10 h-10 border border-black bg-[#fbf9f9] flex items-center justify-center mb-1">
+                <Lock className="w-4 h-4 text-black" />
               </div>
-              <h3 className="text-xl font-bold">Secure Access</h3>
-              <p className="text-xs text-zinc-400">
-                Login with your enterprise Themis administrator account
+              <h3 className="text-sm font-bold uppercase tracking-wider">
+                Secure Access
+              </h3>
+              <p className="text-[10px] text-[#7e7576] font-mono">
+                Sign in to your enterprise control plane
               </p>
             </div>
 
             {error && (
-              <div className="mb-6 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-xs text-red-400 font-medium">
+              <div className="mb-6 p-3 border border-black bg-[#fbf9f9] text-[10px] font-mono text-[#ba1a1a]">
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="flex flex-col gap-5">
+            <form
+              onSubmit={handleLogin}
+              className="flex flex-col gap-5 text-xs font-mono"
+            >
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+                <label className="text-[9px] uppercase tracking-wider text-[#7e7576] font-bold">
                   Email Address
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-white/5 border border-white/10 focus:border-violet-500/50 rounded-xl px-4 py-3 text-sm focus:outline-none transition w-full placeholder:text-zinc-600"
+                  className="bg-[#fbf9f9] border border-black focus:outline-none px-3 py-2.5 w-full placeholder:text-zinc-400"
                   placeholder="admin@themis.ai"
                   required
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-                  Security Password
+                <label className="text-[9px] uppercase tracking-wider text-[#7e7576] font-bold">
+                  Password
                 </label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-white/5 border border-white/10 focus:border-violet-500/50 rounded-xl px-4 py-3 text-sm focus:outline-none transition w-full placeholder:text-zinc-600"
+                  className="bg-[#fbf9f9] border border-black focus:outline-none px-3 py-2.5 w-full placeholder:text-zinc-400"
                   placeholder="Password"
                   required
                 />
@@ -272,121 +279,120 @@ export default function LandingPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full mt-2 bg-white text-black hover:bg-zinc-200 font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                className="w-full mt-2 bg-black text-white hover:bg-white hover:text-black border border-black font-bold py-3 uppercase transition disabled:opacity-50"
               >
-                <span>{loading ? "Authenticating..." : "Sign In"}</span>
-                <ChevronRight className="w-4 h-4" />
+                {loading ? "Authenticating..." : "Sign In"}
               </button>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-white/5 text-center">
-              <p className="text-[10px] font-mono text-zinc-500">
-                DEVELOPER DEMO HINT:
+            <div className="mt-8 pt-6 border-t border-dashed border-black/20 text-center">
+              <p className="text-[9px] font-mono text-[#7e7576] leading-relaxed">
+                DEMO CREDENTIALS:
                 <br />
-                Email: <span className="text-zinc-300">
+                User:{" "}
+                <span className="font-bold text-black">
                   admin@themis.ai
                 </span>{" "}
-                &nbsp;|&nbsp; Pass:{" "}
-                <span className="text-zinc-300">devpass</span>
+                &bull; Pass:{" "}
+                <span className="font-bold text-black">devpass</span>
               </p>
             </div>
           </div>
         )}
 
         {step === "integrate" && (
-          <div className="w-full max-w-md bg-zinc-950/80 border border-white/10 p-8 rounded-3xl backdrop-blur-xl shadow-2xl relative animate-scale-up">
-            <div className="flex flex-col gap-2 mb-8 text-center">
-              <div className="mx-auto w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-2">
-                <GitBranch className="w-5 h-5 text-fuchsia-400" />
+          <div className="w-full max-w-sm bg-white border border-black p-8 shadow-[4px_4px_0px_#000000] relative">
+            <div className="flex flex-col gap-1.5 mb-8 text-center">
+              <div className="mx-auto w-10 h-10 border border-black bg-[#fbf9f9] flex items-center justify-center mb-1">
+                <GitBranch className="w-4 h-4 text-black" />
               </div>
-              <h3 className="text-xl font-bold">VCS Integration</h3>
-              <p className="text-xs text-zinc-400">
-                Connect your source control provider to enable self-healing PRs
+              <h3 className="text-sm font-bold uppercase tracking-wider">
+                VCS Integration
+              </h3>
+              <p className="text-[10px] text-[#7e7576] font-mono">
+                Link source control repository
               </p>
             </div>
 
             {integrationSuccess ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-4 text-center animate-fade-in">
-                <CheckCircle2 className="w-16 h-16 text-emerald-400 animate-bounce" />
+              <div className="flex flex-col items-center justify-center py-6 gap-3 text-center">
+                <CheckCircle2 className="w-12 h-12 text-black" />
                 <div>
-                  <h4 className="font-bold text-lg text-emerald-400">
-                    System Linked!
+                  <h4 className="font-bold text-xs uppercase tracking-wider">
+                    Integration Linked
                   </h4>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    VCS integration complete. Opening dashboard...
+                  <p className="text-[10px] font-mono text-[#7e7576] mt-1">
+                    Opening dashboard console...
                   </p>
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleIntegrate} className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+              <form
+                onSubmit={handleIntegrate}
+                className="flex flex-col gap-6 text-xs font-mono"
+              >
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] uppercase tracking-wider text-[#7e7576] font-bold">
                     Select Provider
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setVcsProvider("github")}
-                      className={`py-3 px-4 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 ${
+                      className={`py-2 px-3 border text-[10px] font-bold transition ${
                         vcsProvider === "github"
-                          ? "border-violet-500 bg-violet-500/10 text-white"
-                          : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20"
+                          ? "border-black bg-black text-white"
+                          : "border-black/20 bg-white text-black hover:border-black"
                       }`}
                     >
-                      <GitBranch className="w-4 h-4" />
-                      <span>GitHub</span>
+                      GitHub
                     </button>
                     <button
                       type="button"
                       onClick={() => setVcsProvider("gitlab")}
-                      className={`py-3 px-4 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 ${
+                      className={`py-2 px-3 border text-[10px] font-bold transition ${
                         vcsProvider === "gitlab"
-                          ? "border-violet-500 bg-violet-500/10 text-white"
-                          : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20"
+                          ? "border-black bg-black text-white"
+                          : "border-black/20 bg-white text-black hover:border-black"
                       }`}
                     >
-                      <Key className="w-4 h-4" />
-                      <span>GitLab</span>
+                      GitLab
                     </button>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-                    Target Repository URL
+                  <label className="text-[9px] uppercase tracking-wider text-[#7e7576] font-bold">
+                    Repository URL
                   </label>
                   <input
                     type="url"
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}
-                    className="bg-white/5 border border-white/10 focus:border-violet-500/50 rounded-xl px-4 py-3 text-sm focus:outline-none transition w-full placeholder:text-zinc-600"
-                    placeholder="https://github.com/org/repo"
+                    className="bg-[#fbf9f9] border border-black focus:outline-none px-3 py-2.5 w-full"
                     required
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-                    Access Token (Private Scopes)
+                  <label className="text-[9px] uppercase tracking-wider text-[#7e7576] font-bold">
+                    Access Token
                   </label>
                   <input
                     type="password"
                     value={vcsToken}
                     onChange={(e) => setVcsToken(e.target.value)}
-                    className="bg-white/5 border border-white/10 focus:border-violet-500/50 rounded-xl px-4 py-3 text-sm focus:outline-none transition w-full placeholder:text-zinc-600"
-                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxx"
+                    className="bg-[#fbf9f9] border border-black focus:outline-none px-3 py-2.5 w-full"
+                    placeholder="ghp_..."
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={integrating}
-                  className="w-full bg-white text-black hover:bg-zinc-200 font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                  className="w-full bg-black text-white hover:bg-white hover:text-black border border-black font-bold py-3 uppercase transition disabled:opacity-50"
                 >
-                  <span>
-                    {integrating ? "Verifying Token..." : "Verify & Integrate"}
-                  </span>
-                  <ChevronRight className="w-4 h-4" />
+                  {integrating ? "Verifying Token..." : "Verify & Link"}
                 </button>
               </form>
             )}
@@ -395,7 +401,7 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-white/5 py-6 text-center text-xs text-zinc-500 font-mono">
+      <footer className="relative z-10 border-t border-black/10 py-6 text-center text-[10px] text-[#7e7576] font-mono">
         &copy; 2026 Themis AI Operations Inc.
       </footer>
     </div>
